@@ -65,8 +65,8 @@ brew install reattach-to-user-namespace or sudo port install tmux-pasteboard
 ```bash
 cd monkey-tmux
 cp .tmux.conf ~/.tmux.conf
-mkdir -p ~/.tmux/plugins
-cd ~/.tmux/plugins
+mkdir -p ~/.tmux
+cd ~/.tmux
 # Change '/usr/lib/python3.4/site-packages/powerline/' to your own powerline path
 ln -s /usr/lib/python3.4/site-packages/powerline/ powerline
 tmux
@@ -84,6 +84,19 @@ The "prefix" key below means "Ctrl+a".
 ```
 prefix+C-s      Save session
 prefix+C-r      Restore session
+
+prefix+g        Prompt for session name and switch to it
+prefix+s        Choose a session from a list
+prefix+S        Switches to the last session
+prefix+(        Switch to previous session
+prefix )        Switch to next session
+
+prefix+C        Prompt for creating a new session by name
+prefix+X        Kill current session without detaching tmux
+prefix+@        Promote current pane into a new session
+prefix+!        Move the current pane into a new separate window
+
+prefix+$        Rename current session
 ```
 
 ### 2. Pane (Split)
@@ -92,10 +105,18 @@ prefix+C-r      Restore session
 prefix+|        Split current pane horizontally
 prefix+-        Split current pane vertically
 
-prefix+h/C-h    Select left pane
-prefix+j/C-j    Select below pane
-prefix+k/C-k    Select above pane
-prefix+l/C-l    Select right pane
+prefix+h/C-h    Go to the left pane
+prefix+j/C-j    Go to the below pane
+prefix+k/C-k    Go to the above pane
+prefix+l/C-l    Go to the right pane
+prefix+;        Go to the ‘last’ (previously used) pane
+
+prefix+x        Kill current pane
+prefix+z        Toggle pane zoom
+
+prefix+{        Move the current pane to the previous position (depends on pane numbers)
+prefix+}        Move the current pane to the next position (depends on pane numbers)
+prefix+q        Display pane numbers
 
 prefix+H        Resize current pane 5 cells to the left
 prefix+J        Resize current pane 5 cells in the up direction
@@ -106,14 +127,22 @@ prefix+L        Resize current pane 5 cells to the right
 ### 3. Window (Tab)
 
 ```
+prefix+c        Create window
+prefix+w        Choose a window from a list
+prefix+f        Find window
+
+prefix+1~9      Switch to window 1~9
 prefix+n/C-n    Switch to next window
 prefix+p/C-p    Switch to previous window
+
+prefix+,        Rename current window
+prefix+&        Kill current window
 
 prefix+<        Moves current window one position to the left
 prefix+>        Moves current window one position to the right
 ```
 
-### n. Search
+### 4. Search
 
 ```
 prefix+/        Regex search
@@ -125,7 +154,7 @@ prefix+Ctrl-d   Number search
 prefix+Alt-i    Ip address search
 ```
 
-### n. Copy mode
+### 5. Copy mode
 
 ```
 y           Copy selection to system clipboard
@@ -134,9 +163,41 @@ n           Jumps to the next match
 N           Jumps to the previous match
 o           Open a highlighted selection with the system default program
 Ctrl-o      Open a highlighted selection with the $EDITOR
+
+v/Space     Start selection
+C-[/ESC     Clear selection
+Enter       Copy selection
+
+H           Cursor to top line
+M           Cursor to middle line
+L           Cursor to bottom line
+
+0           Start of line
+^           Back to indentation
+$           End of line
+:           Goto line
+
+C-d         Half page down
+C-u         Half page up
+C-f         Next page
+C-b         Previous page
+
+j           Cursor down
+k           Cursor up
+h           Cursor left
+l           Cursor right
+J/C-Down    Scroll down
+K/C-Up      Scroll up
+
+w           Next word
+b           Previous word
+
+?           Search backward
+/           Search forward
+q           Quit mode
 ```
 
-### n. Plugin Manager
+### 6. Plugin Manager
 
 ```
 prefix+I        Installs new plugins and refreshes TMUX environment
@@ -144,13 +205,15 @@ prefix+U        Update plugins
 prefix+alt+u    Uninstall plugins unused plugins
 ```
 
-### n. Others
+### 7. Others
 
 ```
 prefix+R    Source .tmux.conf
 
 prefix+y    Copy text from the command line to clipboard
 prefix+Y    Copy pane current working directory to clipboard
+
+prefix+?    Display a list of keyboard shortcuts in copy mode
 ```
 
 ## FAQ
@@ -164,7 +227,7 @@ prefix+Y    Copy pane current working directory to clipboard
 ```bash
 # If not running interactively, do not do anything
 [[ $- != *i* ]] && return
-[[ -z "$TMUX" ]] && exec tmux -2
+[[ -z "$TMUX" ]] && exec tmux -2 new-session -A -s main
 ```
 
 ## Configuration
