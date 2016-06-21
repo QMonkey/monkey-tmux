@@ -155,6 +155,8 @@ prefix+Alt-i    Ip address search
 ### 5. Copy mode
 
 ```
+prefix+[    Enter copy mode
+
 y           Copy selection to system clipboard
 Y           Copy selection and paste it to the command line
 n           Jumps to the next match
@@ -166,9 +168,12 @@ v/Space     Start selection
 C-[/ESC     Clear selection
 Enter       Copy selection
 
-H           Cursor to top line
-M           Cursor to middle line
-L           Cursor to bottom line
+H           Cursor to top screen
+M           Cursor to middle screen
+L           Cursor to bottom screen
+
+gg          Cursor to top line
+G           Cursor to bottom line
 
 0           Start of line
 ^           Back to indentation
@@ -212,6 +217,7 @@ prefix+y    Copy text from the command line to clipboard
 prefix+Y    Copy pane current working directory to clipboard
 
 prefix+?    Display a list of keyboard shortcuts in copy mode
+prefix+:    Enter command mode
 ```
 
 ## FAQ
