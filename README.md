@@ -231,7 +231,15 @@ prefix+:    Enter command mode
 ```bash
 # If not running interactively, do not do anything
 [[ $- != *i* ]] && return
-[[ -z "$TMUX" ]] && exec tmux -2 new-session -A -s main
+
+if [[ -z "$TMUX" ]]; then
+    tmux has-session -t main 2>/dev/null
+    if [[ "$?" -eq 0 ]]; then
+        exec tmux -2 new-session
+    else
+        exec tmux -2 new-session -s main
+    fi
+fi
 ```
 
 ## Configuration
