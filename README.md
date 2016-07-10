@@ -249,7 +249,7 @@ fi
 # Please install keytweak
 
 # Linux
-# Please put this in the 10-nocaps.conf file under /etc/X11/xorg.conf.d/
+# Please put this in the 10-caps2ctrl.conf file under /etc/X11/xorg.conf.d/
 Section "InputClass"
         Identifier             "keyboard-layout"
         MatchIsKeyboard        "on"
