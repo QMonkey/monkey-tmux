@@ -242,6 +242,24 @@ if [[ -z "$TMUX" ]]; then
 fi
 ```
 
+- Remap Caps Lock key to Ctrl
+
+```bash
+# Windows
+# Please install keytweak
+
+# Linux
+# Please put this in the 10-nocaps.conf file under /etc/X11/xorg.conf.d/
+Section "InputClass"
+        Identifier             "keyboard-layout"
+        MatchIsKeyboard        "on"
+        Option "XkbOptions"    "ctrl:nocaps"
+EndSection
+
+# Mac
+# Go to System Preferences -> Keyboard -> Keyboard Tab -> Modifier Keys and select Control for Caps Lock
+```
+
 ## Configuration
 
 If you have any problem or suggestion with monkey-tmux, welcome to give me an [issue](https://github.com/QMonkey/monkey-tmux/issues)
