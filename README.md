@@ -211,13 +211,14 @@ prefix+alt+u    Uninstall plugins unused plugins
 ### 7. Others
 
 ```
-prefix+R    Source .tmux.conf
+prefix+Ctrl-a   Send Ctrl+a to shell
+prefix+R        Source .tmux.conf
 
-prefix+y    Copy text from the command line to clipboard
-prefix+Y    Copy pane current working directory to clipboard
+prefix+y        Copy text from the command line to clipboard
+prefix+Y        Copy pane current working directory to clipboard
 
-prefix+?    Display a list of keyboard shortcuts in copy mode
-prefix+:    Enter command mode
+prefix+?        Display a list of keyboard shortcuts in copy mode
+prefix+:        Enter command mode
 ```
 
 ## FAQ
