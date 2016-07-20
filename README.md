@@ -62,13 +62,21 @@ brew install reattach-to-user-namespace or sudo port install tmux-pasteboard
 
 ```bash
 cd monkey-tmux
-cp .tmux.conf ~/.tmux.conf
+ln -s $(pwd)/.tmux.conf ~/.tmux.conf
 mkdir -p ~/.tmux
 cd ~/.tmux
 # Change '/usr/lib/python3.4/site-packages/powerline/' to your own powerline path
 ln -s /usr/lib/python3.4/site-packages/powerline/ powerline
 tmux
 # Finally, press prefix+I to install plugins
+```
+
+## Update project
+
+```bash
+cd monkey-tmux
+git pull
+# Finall, press prefix+I to install new plugins, and press prefix+U to update plugins
 ```
 
 ## Keyboard shortcut
