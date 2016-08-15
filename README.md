@@ -49,6 +49,7 @@ sudo pip install powerline-status
 ```bash
 brew install tmux
 sudo pip install powerline-status
+sudo pip install psutil
 
 # Less than Mac OS X 10.10
 brew install reattach-to-user-namespace or sudo port install tmux-pasteboard
