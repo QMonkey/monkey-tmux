@@ -255,9 +255,6 @@ fi
 - Remap Caps Lock key to Ctrl
 
 ```bash
-# Windows
-# Please install keytweak
-
 # Linux
 # Please put this in the 10-caps2ctrl.conf file under /etc/X11/xorg.conf.d/
 Section "InputClass"
@@ -268,6 +265,12 @@ EndSection
 
 # Mac
 # Go to System Preferences -> Keyboard -> Keyboard Tab -> Modifier Keys and select Control for Caps Lock
+
+# Windows
+# Run as Administrator and reboot
+$hexified = "00,00,00,00,00,00,00,00,02,00,00,00,1d,00,3a,00,00,00,00,00".Split(",") | % { "0x$_"}
+$kbLayout = "HKLM:\System\CurrentControlSet\Control\Keyboard Layout"
+New-ItemProperty -Path $kbLayout -Name "Scancode Map" -PropertyType Binary -Value ([byte[]]$hexified)
 ```
 
 ## Configuration
