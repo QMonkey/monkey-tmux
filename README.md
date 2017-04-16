@@ -8,7 +8,7 @@ monkey-tmux
 
 ## Screenshot
 
-![tmux](https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/pictures/tmux.png "tmux")
+![tmux](pictures/tmux.png "tmux")
 
 ## How to install
 
