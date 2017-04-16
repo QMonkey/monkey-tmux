@@ -236,18 +236,36 @@ prefix+:        Enter command mode
 
 ## Recommended settings
 
-- In order to startup tmux,  add shell code below to your "~/.bashrc" file
+- In order to startup tmux, add shell code below to your bashrc file
 
 ```bash
 # If not running interactively, do not do anything
 [[ $- != *i* ]] && return
 
 if [[ -z "$TMUX" ]]; then
-    tmux has-session -t main 2>/dev/null
+    tmux has-session -t main 2> /dev/null
     if [[ "$?" -eq 0 ]]; then
         exec tmux -2 new-session
     else
         exec tmux -2 new-session -s main
+    fi
+fi
+```
+
+If you don't want to run tmux in tty, just add shell code below to your bashrc file
+
+```bash
+# If not running interactively, do not do anything
+[[ $- != *i* ]] && return
+
+if [[ ! -z "$DESKTOP_SESSION" ]]; then
+    if [[ -z "$TMUX" ]]; then
+        tmux has-session -t main 2> /dev/null
+        if [[ "$?" -eq 0 ]]; then
+            exec tmux -2 new-session
+        else
+            exec tmux -2 new-session -s main
+        fi
     fi
 fi
 ```
