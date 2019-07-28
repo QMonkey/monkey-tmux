@@ -173,7 +173,7 @@ N           Jumps to the previous match
 o           Open a highlighted selection with the system default program
 Ctrl-o      Open a highlighted selection with the $EDITOR
 
-v/Space     Start selection
+Space       Start selection
 C-[/ESC     Clear selection
 Enter       Copy selection
 
