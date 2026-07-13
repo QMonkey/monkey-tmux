@@ -14,7 +14,7 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Logging**: `tmux-logging` for saving pane output
 - **Status bar**: tmux-power block theme with session, hostname, git branch, time, battery
 - **Mouse support**: `tmux-better-mouse-mode` for responsive mouse
-- **Modal indicators**: prefix highlight and mode indicator in status bar
+- **Modal indicator**: mode indicator (prefix/copy/normal) in status bar
 - **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
 
 ## Requirements
@@ -192,10 +192,10 @@ Enter with `prefix + [`.
 | `prefix + /` | Regex search |
 | `prefix + C-f` | File search |
 | `prefix + C-u` | URL search |
-| `prefix + Alt-h` | SHA-1 hash search |
+| `prefix + M-h` | SHA-1 hash search |
 | `prefix + C-g` | Git status file search |
 | `prefix + C-d` | Number search |
-| `prefix + Alt-i` | IP address search |
+| `prefix + M-i` | IP address search |
 
 ### Logging
 
@@ -211,7 +211,7 @@ Enter with `prefix + [`.
 |-----|--------|
 | `prefix + I` | Install plugins |
 | `prefix + U` | Update plugins |
-| `prefix + Alt-u` | Uninstall unused plugins |
+| `prefix + M-u` | Uninstall unused plugins |
 
 ### Other
 
