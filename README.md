@@ -1,296 +1,242 @@
 # monkey-tmux
 
-Read this in other languages: [简体中文](README.zh-CN.md)
+A tmux configuration focused on functional completeness, performance, Vim-like keybindings, and TTY compatibility.
 
-## Introduction
+## Features
 
-monkey-tmux
+- **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
+- **Vim-style copy mode**: `v/V/C-v` for selection, `H/L` for line nav, `h/j/k/l` for movement
+- **Fuzz copy**: `tmux-fingers` provides vimium-style hint-based copy/paste
+- **Pane/window management**: standard keybindings + `tmux-pain-control` + `tmux-sessionist`
+- **fzf integration**: prefix+Q for fuzzy session/window/pane/command/keybinding search
+- **Search**: `tmux-copycat` for regex, urls, files, git hashes
+- **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
+- **Logging**: `tmux-logging` for saving pane output
+- **Status bar**: tmux-power block theme with session, hostname, git branch, time, battery
+- **Mouse support**: `tmux-better-mouse-mode` for responsive mouse
+- **Modal indicators**: prefix highlight and mode indicator in status bar
+- **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
 
-## Screenshot
+## Requirements
 
-![tmux](pictures/tmux.png "tmux")
+- tmux >= 3.2
+- [fzf](https://github.com/junegunn/fzf) (required for `tmux-fzf`)
+- [gitmux](https://github.com/arl/gitmux) (required for git status in status bar)
+- xclip or xsel (Linux, for clipboard)
 
-## How to install
-
-### 1. Git clone
-
-```bash
-git clone https://github.com/QMonkey/monkey-tmux.git
-```
-
-### 2. Install dependences
-
-#### 2.1 Ubuntu
-
-```bash
-sudo apt-get install tmux
-sudo apt-get install xclip or sudo apt-get install xsel
-sudo pip install powerline-status
-```
-
-#### 2.2 OpenSUSE
+### Install fzf
 
 ```bash
-sudo zypper install tmux
-sudo zypper install xclip or sudo zypper install xsel
-sudo pip install powerline-status
+# Ubuntu/Debian
+sudo apt-get install fzf
+
+# macOS
+brew install fzf
+
+# From source
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
 ```
 
-#### 2.3 CentOS
+### Install gitmux
 
 ```bash
-sudo yum install tmux
-sudo yum install xclip or sudo yum install xsel
-sudo pip install powerline-status
+# Requires Go 1.16+
+go install github.com/arl/gitmux@latest
 ```
 
-#### 2.4 Mac
+## Installation
 
 ```bash
-brew install tmux
-sudo pip install powerline-status
-sudo pip install psutil
-
-# Less than Mac OS X 10.10
-brew install reattach-to-user-namespace or sudo port install tmux-pasteboard
+git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
+ln -sf ~/monkey-tmux/.tmux.conf ~/.tmux.conf
 ```
 
-#### 2.5 Fonts
+Start tmux, then press `prefix + I` to install plugins.
 
-- [powerline-font](https://github.com/powerline/fonts)
+### Dependency check
 
-### 3. Install monkey-tmux
+Run `checkhealth.sh` to verify all dependencies are installed:
 
 ```bash
-cd monkey-tmux
-ln -s $(pwd)/.tmux.conf ~/.tmux.conf
-mkdir -p ~/.tmux
-cd ~/.tmux
-# Change '/usr/lib/python3.4/site-packages/powerline/' to your own powerline path
-ln -s /usr/lib/python3.4/site-packages/powerline/ powerline
-tmux
-# Finally, press prefix+I to install plugins
+./monkey-tmux/checkhealth.sh
 ```
 
-## Update project
+To auto-install missing packages:
 
 ```bash
-cd monkey-tmux
-git pull
-# Finall, press prefix+I to install new plugins, and press prefix+U to update plugins
+./monkey-tmux/checkhealth.sh --install
 ```
 
-## Keyboard shortcut
+## Auto-start tmux on shell login
 
-```
-The "prefix" key below means "Ctrl+a".
-```
-
-### 1. Session
-
-```
-prefix+C-s      Save session
-prefix+C-r      Restore session
-
-prefix+g        Prompt for session name and switch to it
-prefix+s        Choose a session from a list
-prefix+S        Switches to the last session
-prefix+(        Switch to previous session
-prefix )        Switch to next session
-
-prefix+C        Prompt for creating a new session by name
-prefix+X        Kill current session without detaching tmux
-prefix+@        Promote current pane into a new session
-prefix+!        Move the current pane into a new separate window
-
-prefix+$        Rename current session
-```
-
-### 2. Pane (Split)
-
-```
-prefix+|        Split current pane horizontally
-prefix+-        Split current pane vertically
-
-prefix+h/C-h    Go to the left pane
-prefix+j/C-j    Go to the below pane
-prefix+k/C-k    Go to the above pane
-prefix+l/C-l    Go to the right pane
-prefix+;        Go to the ‘last’ (previously used) pane
-
-prefix+x        Kill current pane
-prefix+z        Toggle pane zoom
-
-prefix+{        Move the current pane to the previous position (depends on pane numbers)
-prefix+}        Move the current pane to the next position (depends on pane numbers)
-prefix+q        Display pane numbers
-
-prefix+H        Resize current pane 5 cells to the left
-prefix+J        Resize current pane 5 cells in the up direction
-prefix+K        Resize current pane 5 cells in the down direction
-prefix+L        Resize current pane 5 cells to the right
-```
-
-### 3. Window (Tab)
-
-```
-prefix+c        Create window
-prefix+w        Choose a window from a list
-prefix+f        Find window
-
-prefix+1~9      Switch to window 1~9
-prefix+n/C-n    Switch to next window
-prefix+p/C-p    Switch to previous window
-
-prefix+,        Rename current window
-prefix+&        Kill current window
-
-prefix+<        Moves current window one position to the left
-prefix+>        Moves current window one position to the right
-```
-
-### 4. Search
-
-```
-prefix+/        Regex search
-prefix+Ctrl-f   Simple file search
-prefix+Ctrl-u   Url search (http, ftp and git urls)
-prefix+Alt-h    Jumping over SHA-1 hashes (best used after git log command)
-prefix+Ctrl-g   Jumping over git status files (best used after git status command)
-prefix+Ctrl-d   Number search
-prefix+Alt-i    Ip address search
-```
-
-### 5. Copy mode
-
-```
-prefix+[    Enter copy mode
-
-y           Copy selection to system clipboard
-Y           Copy selection and paste it to the command line
-n           Jumps to the next match
-N           Jumps to the previous match
-o           Open a highlighted selection with the system default program
-Ctrl-o      Open a highlighted selection with the $EDITOR
-
-Space       Start selection
-C-[/ESC     Clear selection
-Enter       Copy selection
-
-H           Cursor to top screen
-M           Cursor to middle screen
-L           Cursor to bottom screen
-
-gg          Cursor to top line
-G           Cursor to bottom line
-
-0           Start of line
-^           Back to indentation
-$           End of line
-:           Goto line
-
-C-d         Half page down
-C-u         Half page up
-C-f         Next page
-C-b         Previous page
-
-j           Cursor down
-k           Cursor up
-h           Cursor left
-l           Cursor right
-J/C-Down    Scroll down
-K/C-Up      Scroll up
-
-w           Next word
-b           Previous word
-
-?           Search backward
-/           Search forward
-q           Quit mode
-```
-
-### 6. Plugin Manager
-
-```
-prefix+I        Installs new plugins and refreshes TMUX environment
-prefix+U        Update plugins
-prefix+alt+u    Uninstall plugins unused plugins
-```
-
-### 7. Others
-
-```
-prefix+Ctrl-a   Send Ctrl+a to shell
-prefix+R        Source .tmux.conf
-
-prefix+y        Copy text from the command line to clipboard
-prefix+Y        Copy pane current working directory to clipboard
-
-prefix+?        Display a list of keyboard shortcuts in copy mode
-prefix+:        Enter command mode
-```
-
-## FAQ
-
-[FAQ](https://github.com/QMonkey/monkey-tmux/wiki/FAQ)
-
-## Recommended settings
-
-- In order to startup tmux, add shell code below to your bashrc file
+Add this to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-# If not running interactively, do not do anything
-[[ $- != *i* ]] && return
-
-if [[ -z "$TMUX" ]]; then
-    tmux has-session -t main 2> /dev/null
-    if [[ "$?" -eq 0 ]]; then
-        exec tmux -2 new-session
-    else
-        exec tmux -2 new-session -s main
-    fi
+if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
+    tmux attach -t main 2>/dev/null || tmux new-session -s main
 fi
 ```
 
-If you don't want to run tmux in tty, just add shell code below to your bashrc file
+For a desktop-only setup (skip TTY):
 
 ```bash
-# If not running interactively, do not do anything
-[[ $- != *i* ]] && return
-
-if [[ ! -z "$DESKTOP_SESSION" ]]; then
-    if [[ -z "$TMUX" ]]; then
-        tmux has-session -t main 2> /dev/null
-        if [[ "$?" -eq 0 ]]; then
-            exec tmux -2 new-session
-        else
-            exec tmux -2 new-session -s main
-        fi
-    fi
+if [[ -z "$TMUX" ]] && [[ -n "$DISPLAY" ]] && command -v tmux >/dev/null; then
+    tmux attach -t main 2>/dev/null || tmux new-session -s main
 fi
 ```
 
-- Remap Caps Lock key to Ctrl
+## Theme
 
-```bash
-# Linux
-# Please put this in the 10-caps2ctrl.conf file under /etc/X11/xorg.conf.d/
-Section "InputClass"
-        Identifier             "keyboard-layout"
-        MatchIsKeyboard        "on"
-        Option "XkbOptions"    "ctrl:nocaps"
-EndSection
+`tmux-power` with `snow` theme. Block-style separators (TTY-safe).
 
-# Mac
-# Go to System Preferences -> Keyboard -> Keyboard Tab -> Modifier Keys and select Control for Caps Lock
-
-# Windows
-# Run as Administrator and reboot
-$hexified = "00,00,00,00,00,00,00,00,02,00,00,00,1d,00,3a,00,00,00,00,00".Split(",") | % { "0x$_"}
-$kbLayout = "HKLM:\System\CurrentControlSet\Control\Keyboard Layout"
-New-ItemProperty -Path $kbLayout -Name "Scancode Map" -PropertyType Binary -Value ([byte[]]$hexified)
+To change theme, modify `@tmux_power_theme` in `.tmux.conf`:
+```tmux
+set -g @tmux_power_theme 'everforest'  # also: moon, coral, gold, forest, violet, redwine, sky, snow
 ```
+
+## Git status in status bar
+
+gitmux config is bundled as `.gitmux.yml` in the repo. It is auto-linked
+to `~/.gitmux.yml` on first run. Only visible when the current pane is inside a git repository.
+
+To customize:
+```bash
+cp "$(dirname "$(readlink -f ~/.tmux.conf)")/.gitmux.yml" ~/.gitmux.yml
+```
+
+## Keyboard shortcuts
+
+Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
+
+### Session
+
+| Key | Action |
+|-----|--------|
+| `prefix + C-s` | Save session |
+| `prefix + C-r` | Restore session |
+| `prefix + g` | Switch to session (prompt) |
+| `prefix + s` | Choose session from list |
+| `prefix + S` | Switch to last session |
+| `prefix + (` | Previous session |
+| `prefix + )` | Next session |
+| `prefix + C` | Create session by name |
+| `prefix + X` | Kill current session |
+| `prefix + @` | Promote pane to new session |
+| `prefix + $` | Rename session |
+
+### Window (tab)
+
+| Key | Action |
+|-----|--------|
+| `prefix + c` | Create window |
+| `prefix + w` | Choose window from list |
+| `prefix + f` | Find window |
+| `prefix + 1~9` | Switch to window 1-9 |
+| `prefix + n` / `C-n` | Next window |
+| `prefix + p` / `C-p` | Previous window |
+| `prefix + ,` | Rename window |
+| `prefix + &` | Kill window |
+| `prefix + <` | Move window left |
+| `prefix + >` | Move window right |
+
+### Pane (split)
+
+| Key | Action |
+|-----|--------|
+| `prefix + \|` | Split vertically |
+| `prefix + -` | Split horizontally |
+| `prefix + h` / `C-h` | Left pane |
+| `prefix + j` / `C-j` | Down pane |
+| `prefix + k` / `C-k` | Up pane |
+| `prefix + l` / `C-l` | Right pane |
+| `prefix + ;` | Last pane |
+| `prefix + x` | Kill pane |
+| `prefix + z` | Toggle zoom |
+| `prefix + {` / `}` | Move pane position |
+| `prefix + q` | Display pane numbers |
+| `prefix + H/J/K/L` | Resize pane 5 cells |
+| `prefix + !` | Move pane to new window |
+
+### Copy mode (vi-style)
+
+Enter with `prefix + [`.
+
+| Key | Action |
+|-----|--------|
+| `h/j/k/l` | Cursor movement |
+| `w/b` | Next/previous word |
+| `H` | Start of line |
+| `L` | End of line |
+| `0` | Start of line (alt) |
+| `^` | Back to indentation |
+| `$` | End of line (alt) |
+| `gg` / `G` | Top/bottom of buffer |
+| `C-f` / `C-b` | Page down/up |
+| `C-d` / `C-u` | Half page down/up |
+| `J` / `K` | Scroll down/up |
+| `v` | Begin selection (character) |
+| `V` | Select line |
+| `C-v` | Rectangle selection (begin) |
+| `o` | Jump to other end of selection |
+| `y` | Copy to clipboard |
+| `Y` | Copy and paste to command line |
+| `Esc` / `q` | Cancel/exit |
+| `/` / `?` | Search forward/backward |
+| `n` / `N` | Next/previous match |
+| `f` / `F` | Jump forward/backward |
+| `t` / `T` | Jump to forward/backward |
+| `{` / `}` | Previous/next paragraph |
+| `%` | Matching bracket |
+
+### Search
+
+| Key | Action |
+|-----|--------|
+| `prefix + /` | Regex search |
+| `prefix + C-f` | File search |
+| `prefix + C-u` | URL search |
+| `prefix + Alt-h` | SHA-1 hash search |
+| `prefix + C-g` | Git status file search |
+| `prefix + C-d` | Number search |
+| `prefix + Alt-i` | IP address search |
+
+### Logging
+
+| Key | Action |
+|-----|--------|
+| `prefix + P` | Toggle logging |
+| `prefix + M-p` | Save visible text |
+| `prefix + M-P` | Save complete history |
+
+### TPM (plugin manager)
+
+| Key | Action |
+|-----|--------|
+| `prefix + I` | Install plugins |
+| `prefix + U` | Update plugins |
+| `prefix + Alt-u` | Uninstall unused plugins |
+
+### Other
+
+| Key | Action |
+|-----|--------|
+| `prefix + F` | Fingers hint mode (copy text with hints) |
+| `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
+| `prefix + R` | Reload config |
+| `prefix + ?` | List keybindings |
+| `prefix + :` | Command mode |
+| `prefix + y` | Copy command line text to clipboard |
+| `prefix + Y` | Copy pane CWD to clipboard |
 
 ## Configuration
 
-If you have any problem or suggestion with monkey-tmux, welcome to give me an [issue](https://github.com/QMonkey/monkey-tmux/issues)
+Edit `~/.tmux.conf`. After changes, reload with `prefix + R`.
+
+### Disable auto-start
+
+Remove or comment out `tmux-continuum` from the plugin list.
+
+## FAQ
+
+See [wiki](https://github.com/QMonkey/monkey-tmux/wiki/FAQ).
