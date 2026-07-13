@@ -97,13 +97,9 @@ set -g @tmux_power_theme 'everforest'  # also: moon, coral, gold, forest, violet
 
 ## Git status in status bar
 
-gitmux config is bundled as `.gitmux.yml` in the repo. It is auto-linked
-to `~/.gitmux.yml` on first run. Only visible when the current pane is inside a git repository.
-
-To customize:
-```bash
-cp "$(dirname "$(readlink -f ~/.tmux.conf)")/.gitmux.yml" ~/.gitmux.yml
-```
+gitmux config is bundled as `.gitmux.yml` in the repo and auto-linked to `~/.gitmux.yml`.
+Only visible when the current pane is inside a git repository.
+Edit `~/.gitmux.yml` to customize.
 
 ## Keyboard shortcuts
 
