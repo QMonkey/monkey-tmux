@@ -59,13 +59,13 @@ Start tmux, then press `prefix + I` to install plugins.
 Run `checkhealth.sh` to verify all dependencies are installed:
 
 ```bash
-./monkey-tmux/checkhealth.sh
+./checkhealth.sh
 ```
 
 To auto-install missing packages:
 
 ```bash
-./monkey-tmux/checkhealth.sh --install
+./checkhealth.sh --install
 ```
 
 ## Auto-start tmux on shell login
