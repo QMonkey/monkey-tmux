@@ -119,6 +119,8 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 | `prefix + C` | Create session by name |
 | `prefix + X` | Kill current session |
 | `prefix + @` | Promote pane to new session |
+| `prefix + C-Space` | Promote window to new session |
+| `prefix + t` | Join pane into current window |
 | `prefix + $` | Rename session |
 
 ### Window (tab)
@@ -131,6 +133,7 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 | `prefix + 1~9` | Switch to window 1-9 |
 | `prefix + n` / `C-n` | Next window |
 | `prefix + p` / `C-p` | Previous window |
+| `prefix + a` | Last window |
 | `prefix + ,` | Rename window |
 | `prefix + &` | Kill window |
 | `prefix + <` | Move window left |
@@ -141,18 +144,22 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 | Key | Action |
 |-----|--------|
 | `prefix + \|` | Split vertically |
+| `prefix + \` | Split vertically (full width) |
 | `prefix + -` | Split horizontally |
+| `prefix + _` | Split horizontally (full height) |
 | `prefix + h` / `C-h` | Left pane |
 | `prefix + j` / `C-j` | Down pane |
 | `prefix + k` / `C-k` | Up pane |
 | `prefix + l` / `C-l` | Right pane |
 | `prefix + ;` | Last pane |
+| `prefix + o` | Next pane |
 | `prefix + x` | Kill pane |
 | `prefix + z` | Toggle zoom |
 | `prefix + {` / `}` | Move pane position |
 | `prefix + q` | Display pane numbers |
 | `prefix + H/J/K/L` | Resize pane 5 cells |
 | `prefix + !` | Move pane to new window |
+| `prefix + m` | Mark pane |
 
 ### Copy mode (vi-style)
 
@@ -174,9 +181,9 @@ Enter with `prefix + [`.
 | `v` | Begin selection (character) |
 | `V` | Select line |
 | `C-v` | Rectangle selection (begin) |
-| `o` | Jump to other end of selection |
 | `y` | Copy to clipboard |
-| `Y` | Copy and paste to command line |
+| `Y` | Copy to tmux buffer (put) |
+| `M-y` | Yank and put (copy + paste) |
 | `Esc` / `q` | Cancel/exit |
 | `/` / `?` | Search forward/backward |
 | `n` / `N` | Next/previous match |
@@ -184,6 +191,8 @@ Enter with `prefix + [`.
 | `t` / `T` | Jump to forward/backward |
 | `{` / `}` | Previous/next paragraph |
 | `%` | Matching bracket |
+| `o` | Open selection with system handler |
+| `C-o` | Open selection in \$EDITOR |
 
 ### Search
 
@@ -196,6 +205,7 @@ Enter with `prefix + [`.
 | `prefix + C-g` | Git status file search |
 | `prefix + C-d` | Number search |
 | `prefix + M-i` | IP address search |
+| `n` / `N` | Next/previous match (copy mode) |
 
 ### Logging
 
@@ -204,6 +214,7 @@ Enter with `prefix + [`.
 | `prefix + P` | Toggle logging |
 | `prefix + M-p` | Save visible text |
 | `prefix + M-P` | Save complete history |
+| `prefix + M-c` | Clear pane history |
 
 ### TPM (plugin manager)
 
@@ -218,12 +229,15 @@ Enter with `prefix + [`.
 | Key | Action |
 |-----|--------|
 | `prefix + F` | Fingers hint mode (copy text with hints) |
+| `prefix + J` | Fingers jump mode (jump to hint) |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
 | `prefix + R` | Reload config |
 | `prefix + ?` | List keybindings |
 | `prefix + :` | Command mode |
-| `prefix + y` | Copy command line text to clipboard |
+| `prefix + y` | Copy command line to clipboard |
 | `prefix + Y` | Copy pane CWD to clipboard |
+| `prefix + d` | Detach client |
+| `prefix + D` | Choose client to detach |
 
 ## Configuration
 
