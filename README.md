@@ -70,21 +70,48 @@ To auto-install missing packages:
 
 ## Auto-start tmux on shell login
 
-Add this to your `~/.bashrc` or `~/.zshrc`:
+Add to your `~/.bashrc` or `~/.zshrc`:
+
+**First terminal restores, rest are independent**:
 
 ```bash
 if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
-    tmux attach -t main 2>/dev/null || tmux new-session -s main
+    if ! tmux has-session -t main 2>/dev/null; then
+        exec tmux new-session -s main
+    else
+        exec tmux new-session
+    fi
 fi
 ```
+
+The first terminal triggers continuum auto-restore; subsequent terminals
+get independent sessions with default names (0, 1, 2…). Requires
+`@continuum-restore 'on'` in `.tmux.conf`.
+
+**Shared session** (recommended):
+
+```bash
+if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
+    if tmux has-session -t main 2>/dev/null; then
+        exec tmux attach -t main
+    else
+        exec tmux new-session -s main
+    fi
+fi
+```
+
+All terminals attach to the same `main` session — windows and panes are
+mirrored across terminals.
 
 For a desktop-only setup (skip TTY):
 
 ```bash
 if [[ -z "$TMUX" ]] && [[ -n "$DISPLAY" ]] && command -v tmux >/dev/null; then
-    tmux attach -t main 2>/dev/null || tmux new-session -s main
+    # use the shared session or continuum logic above
 fi
 ```
+
+`exec` replaces the shell process so `exit` closes the terminal directly.
 
 ## Theme
 
@@ -246,7 +273,3 @@ Edit `~/.tmux.conf`. After changes, reload with `prefix + R`.
 ### Disable auto-start
 
 Remove or comment out `tmux-continuum` from the plugin list.
-
-## FAQ
-
-See [wiki](https://github.com/QMonkey/monkey-tmux/wiki/FAQ).
