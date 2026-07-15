@@ -49,7 +49,7 @@ go install github.com/arl/gitmux@latest
 
 ```bash
 git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
-ln -sf ~/monkey-tmux/.tmux.conf ~/.tmux.conf
+ln -s $(pwd)/.tmux.conf ~/.tmux.conf
 ```
 
 Start tmux, then press `prefix + I` to install plugins.
