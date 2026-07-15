@@ -161,6 +161,7 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 | `prefix + n` / `C-n` | Next window |
 | `prefix + p` / `C-p` | Previous window |
 | `prefix + a` | Last window |
+| `prefix + Tab` | Last window |
 | `prefix + ,` | Rename window |
 | `prefix + &` | Kill window |
 | `prefix + <` | Move window left |
@@ -182,7 +183,8 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 | `prefix + o` | Next pane |
 | `prefix + x` | Kill pane |
 | `prefix + z` | Toggle zoom |
-| `prefix + {` / `}` | Move pane position |
+| `prefix + {` / `}` | Swap pane position |
+| `prefix + E` | Toggle synchronize-panes |
 | `prefix + q` | Display pane numbers |
 | `prefix + H/J/K/L` | Resize pane 5 cells |
 | `prefix + !` | Move pane to new window |
@@ -258,6 +260,7 @@ Enter with `prefix + [`.
 | `prefix + F` | Fingers hint mode (copy text with hints) |
 | `prefix + J` | Fingers jump mode (jump to hint) |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
+| `prefix + =` | Clipboard buffer history |
 | `prefix + R` | Reload config |
 | `prefix + ?` | List keybindings |
 | `prefix + :` | Command mode |
