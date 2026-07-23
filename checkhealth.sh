@@ -15,6 +15,8 @@ WARN="[${YELLOW}!${NC}]"
 ALL_PASSED=true
 INSTALL_MODE=false
 
+REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
 usage() {
 	cat <<EOF
 Usage: $0 [OPTIONS]
@@ -50,19 +52,6 @@ check_bin() {
 		return 0
 	else
 		echo -e "  ${FAIL} ${2:-$1}"
-		ALL_PASSED=false
-		return 1
-	fi
-}
-
-check_cmd() {
-	local desc="$1"
-	shift
-	if "$@" &>/dev/null; then
-		echo -e "  ${PASS} ${desc}"
-		return 0
-	else
-		echo -e "  ${FAIL} ${desc}"
 		ALL_PASSED=false
 		return 1
 	fi
@@ -131,6 +120,40 @@ install_pkg() {
 	esac
 }
 
+install_go_pkg() {
+	if ! $INSTALL_MODE; then return 1; fi
+	local pkg="$1" desc="$2"
+	if ! command -v go &>/dev/null; then
+		echo -e "  ${FAIL} ${desc}: need Go installed first"
+		return 1
+	fi
+	echo -e "  Installing ${desc} via ${CYAN}go install${NC}..."
+	if go install "${pkg}@latest"; then
+		echo -e "  ${PASS} ${desc} installed"
+		return 0
+	else
+		echo -e "  ${FAIL} ${desc} installation failed"
+		return 1
+	fi
+}
+
+install_npm_pkg() {
+	if ! $INSTALL_MODE; then return 1; fi
+	local pkg="$1" desc="$2"
+	if ! command -v npm &>/dev/null; then
+		echo -e "  ${FAIL} ${desc}: need Node.js/npm installed first"
+		return 1
+	fi
+	echo -e "  Installing ${desc} via ${CYAN}npm${NC}..."
+	if npm install -g "${pkg}"; then
+		echo -e "  ${PASS} ${desc} installed"
+		return 0
+	else
+		echo -e "  ${FAIL} ${desc} installation failed"
+		return 1
+	fi
+}
+
 get_install_hint() {
 	case "$OS" in
 	debian) echo "sudo apt-get install ${*}" ;;
@@ -166,25 +189,9 @@ echo -e "${BOLD}Required tools${NC}"
 MISSING_REQUIRED=()
 
 check_bin git "git" || MISSING_REQUIRED+=("git")
+check_bin fzf "fzf (required by tmux-fzf)" || MISSING_REQUIRED+=("fzf")
+check_bin gitmux "gitmux (git status in status bar)" || MISSING_REQUIRED+=("gitmux")
 
-echo ""
-
-# ──── fzf ────
-echo -e "${BOLD}fzf${NC} (required by tmux-fzf)"
-if check_bin fzf "fzf"; then
-	:
-else
-	MISSING_REQUIRED+=("fzf")
-fi
-echo ""
-
-# ──── gitmux ────
-echo -e "${BOLD}gitmux${NC} (required for git status in status bar)"
-if check_bin gitmux "gitmux"; then
-	:
-else
-	MISSING_REQUIRED+=("gitmux")
-fi
 echo ""
 
 # ──── clipboard ────
@@ -192,9 +199,9 @@ echo -e "${BOLD}Clipboard${NC} (required by tmux-yank)"
 if [[ "$OS" == "macos" ]]; then
 	check_bin pbcopy "pbcopy (macOS built-in)" || MISSING_REQUIRED+=("pbcopy")
 else
-	if check_bin xclip "xclip" 2>/dev/null; then
+	if check_bin xclip "xclip"; then
 		:
-	elif check_bin xsel "xsel" 2>/dev/null; then
+	elif check_bin xsel "xsel"; then
 		:
 	else
 		echo -e "  ${FAIL} xclip or xsel"
@@ -232,7 +239,8 @@ echo ""
 
 # ──── optional ────
 echo -e "${BOLD}Optional tools${NC}"
-if check_bin rg "ripgrep (recommended for faster fzf search)" 2>/dev/null; then :; fi
+check_bin rg "ripgrep (recommended for faster fzf search)" 2>/dev/null || true
+echo ""
 
 # ──── terminal capabilities ────
 echo -e "${BOLD}Terminal capabilities${NC}"
@@ -269,7 +277,7 @@ if [[ -L "$TMUXCONF" ]]; then
 elif [[ -f "$TMUXCONF" ]]; then
 	echo -e "  ${WARN} .tmux.conf exists but is not a symlink"
 else
-	echo -e "  ${FAIL} .tmux.conf not found (run: ln -s /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
+	echo -e "  ${FAIL} .tmux.conf not found (run: ln -s ${REPO_DIR}/.tmux.conf ~/.tmux.conf)"
 	ALL_PASSED=false
 fi
 
@@ -286,6 +294,13 @@ elif [[ -f "$GITMUX_CONF" ]]; then
 	echo -e "  ${PASS} .gitmux.yml exists"
 else
 	echo -e "  ${WARN} .gitmux.yml not found (auto-linked on first tmux start)"
+fi
+
+if [[ -f "${REPO_DIR}/configs/.gitmux.yml" ]]; then
+	echo -e "  ${PASS} configs/.gitmux.yml in repo"
+else
+	echo -e "  ${FAIL} configs/.gitmux.yml missing in repo"
+	ALL_PASSED=false
 fi
 
 # ──── TPM ────
@@ -306,14 +321,21 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 	echo ""
 
 	declare -A APT_NAMES=(
+		["git"]="git"
 		["fzf"]="fzf"
 		["xclip"]="xclip"
+		["xsel"]="xsel"
 	)
 	declare -A PACMAN_NAMES=(
+		["git"]="git"
 		["fzf"]="fzf"
 		["xclip"]="xclip"
+		["xsel"]="xsel"
 	)
-	declare -A BREW_NAMES=()
+	declare -A BREW_NAMES=(
+		["git"]="git"
+		["fzf"]="fzf"
+	)
 
 	pkg_name() {
 		local bin="$1"
@@ -329,16 +351,7 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 	for b in "${MISSING_REQUIRED[@]}"; do
 		case "$b" in
 		gitmux)
-			if command -v go &>/dev/null; then
-				echo -e "  Installing gitmux via ${CYAN}go install${NC}..."
-				if go install github.com/arl/gitmux@latest; then
-					echo -e "  ${PASS} gitmux installed"
-				else
-					echo -e "  ${FAIL} gitmux installation failed"
-				fi
-			else
-				echo -e "  ${FAIL} gitmux: need Go 1.16+ installed first ($(get_install_hint golang))"
-			fi
+			install_go_pkg "github.com/arl/gitmux" "gitmux"
 			continue
 			;;
 		esac
@@ -363,6 +376,23 @@ else
 	echo -e "${RED}${BOLD}Some required dependencies are missing.${NC}"
 	if ! $INSTALL_MODE; then
 		echo -e "Run ${CYAN}$0 --install${NC} to install them automatically."
+		echo ""
+		echo -e "${BOLD}Install commands:${NC}"
+		if ! command -v git &>/dev/null; then
+			echo -e "  $(get_install_hint git)"
+		fi
+		if ! command -v fzf &>/dev/null; then
+			echo -e "  $(get_install_hint fzf)"
+		fi
+		if ! command -v gitmux &>/dev/null; then
+			echo -e "  go install github.com/arl/gitmux@latest"
+		fi
+		if ! command -v xclip &>/dev/null && ! command -v xsel &>/dev/null && [[ "$OS" != "macos" ]]; then
+			echo -e "  $(get_install_hint xclip)"
+		fi
+		if ! command -v rg &>/dev/null; then
+			echo -e "  $(get_install_hint ripgrep)"
+		fi
 	fi
 	exit 1
 fi

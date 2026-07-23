@@ -2,6 +2,10 @@
 
 A tmux configuration focused on functional completeness, performance, Vim-like keybindings, and TTY compatibility.
 
+## Screenshot
+
+![tmux](pictures/tmux.png "tmux")
+
 ## Features
 
 - **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
@@ -49,8 +53,11 @@ go install github.com/arl/gitmux@latest
 
 ```bash
 git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
-ln -s $(pwd)/.tmux.conf ~/.tmux.conf
+ln -sf $(pwd)/.tmux.conf ~/.tmux.conf
 ```
+
+Config files are in `configs/` and are auto-linked on first tmux start:
+- `configs/.gitmux.yml` → `~/.gitmux.yml` (git status in status bar)
 
 Start tmux, then press `prefix + I` to install plugins.
 
@@ -124,7 +131,7 @@ set -g @tmux_power_theme 'everforest'  # also: moon, coral, gold, forest, violet
 
 ## Git status in status bar
 
-gitmux config is bundled as `.gitmux.yml` in the repo and auto-linked to `~/.gitmux.yml`.
+gitmux config is bundled as `configs/.gitmux.yml` in the repo and auto-linked to `~/.gitmux.yml`.
 Only visible when the current pane is inside a git repository.
 Edit `~/.gitmux.yml` to customize.
 
