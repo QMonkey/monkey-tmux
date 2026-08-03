@@ -2,6 +2,10 @@
 
 A tmux configuration focused on functional completeness, performance, Vim-like keybindings, and TTY compatibility.
 
+## Screenshot
+
+![tmux](pictures/tmux.png "tmux")
+
 ## Features
 
 - **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
