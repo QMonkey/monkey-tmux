@@ -2,10 +2,6 @@
 
 A tmux configuration focused on functional completeness, performance, Vim-like keybindings, and TTY compatibility.
 
-## Screenshot
-
-![tmux](pictures/tmux.png "tmux")
-
 ## Features
 
 - **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
@@ -16,7 +12,7 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Search**: `tmux-copycat` for regex, urls, files, git hashes
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
-- **Status bar**: tmux-power block theme with session, hostname, git branch, time, battery
+- **Status bar**: tmux-power block theme with session, hostname, time, battery
 - **Mouse support**: `tmux-better-mouse-mode` for responsive mouse
 - **Modal indicator**: mode indicator (prefix/copy/normal) in status bar
 - **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
@@ -25,7 +21,6 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 
 - tmux >= 3.2
 - [fzf](https://github.com/junegunn/fzf) (required for `tmux-fzf`)
-- [gitmux](https://github.com/arl/gitmux) (required for git status in status bar)
 - xclip or xsel (Linux, for clipboard)
 
 ### Install fzf
@@ -42,22 +37,12 @@ git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 ~/.fzf/install
 ```
 
-### Install gitmux
-
-```bash
-# Requires Go 1.16+
-go install github.com/arl/gitmux@latest
-```
-
 ## Installation
 
 ```bash
 git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
-ln -sf $(pwd)/.tmux.conf ~/.tmux.conf
+ln -s $(pwd)/.tmux.conf ~/.tmux.conf
 ```
-
-Config files are in `configs/` and are auto-linked on first tmux start:
-- `configs/.gitmux.yml` → `~/.gitmux.yml` (git status in status bar)
 
 Start tmux, then press `prefix + I` to install plugins.
 
@@ -79,7 +64,24 @@ To auto-install missing packages:
 
 Add to your `~/.bashrc` or `~/.zshrc`:
 
-**First terminal restores, rest are independent**:
+**Shared session (recommended)**:
+
+```bash
+if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
+    if tmux has-session -t main 2>/dev/null; then
+        exec tmux new-window -t main \; attach -t main
+    else
+        exec tmux new-session -s main
+    fi
+fi
+```
+
+The first terminal creates the `main` session and triggers continuum
+auto-restore. Subsequent terminals attach to `main` and automatically
+open a new window — each terminal gets its own workspace while sharing
+the same session (windows and panes are mirrored across terminals).
+
+**Independent sessions**:
 
 ```bash
 if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
@@ -91,30 +93,14 @@ if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
 fi
 ```
 
-The first terminal triggers continuum auto-restore; subsequent terminals
-get independent sessions with default names (0, 1, 2…). Requires
-`@continuum-restore 'on'` in `.tmux.conf`.
-
-**Shared session** (recommended):
-
-```bash
-if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
-    if tmux has-session -t main 2>/dev/null; then
-        exec tmux attach -t main
-    else
-        exec tmux new-session -s main
-    fi
-fi
-```
-
-All terminals attach to the same `main` session — windows and panes are
-mirrored across terminals.
+First terminal restores, rest get independent sessions with default
+names (0, 1, 2…). Requires `@continuum-restore 'on'` in `.tmux.conf`.
 
 For a desktop-only setup (skip TTY):
 
 ```bash
-if [[ -z "$TMUX" ]] && [[ -n "$DISPLAY" ]] && command -v tmux >/dev/null; then
-    # use the shared session or continuum logic above
+if [[ -z "$TMUX" ]] && [[ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]] && command -v tmux >/dev/null; then
+    # use shared session or independent sessions logic above
 fi
 ```
 
@@ -128,12 +114,6 @@ To change theme, modify `@tmux_power_theme` in `.tmux.conf`:
 ```tmux
 set -g @tmux_power_theme 'everforest'  # also: moon, coral, gold, forest, violet, redwine, sky, snow
 ```
-
-## Git status in status bar
-
-gitmux config is bundled as `configs/.gitmux.yml` in the repo and auto-linked to `~/.gitmux.yml`.
-Only visible when the current pane is inside a git repository.
-Edit `~/.gitmux.yml` to customize.
 
 ## Keyboard shortcuts
 
