@@ -73,7 +73,7 @@ Add to your `~/.bashrc` or `~/.zshrc`:
 ```bash
 if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
     if tmux has-session -t main 2>/dev/null; then
-        exec tmux new-window -t main \; attach -t main
+        exec tmux new-session -t main \; new-window
     else
         exec tmux new-session -s main
     fi
@@ -81,9 +81,9 @@ fi
 ```
 
 The first terminal creates the `main` session and triggers continuum
-auto-restore. Subsequent terminals attach to `main` and automatically
-open a new window — each terminal gets its own workspace while sharing
-the same session (windows and panes are mirrored across terminals).
+auto-restore. Subsequent terminals create a new grouped session sharing
+`main`'s windows, then open a fresh window — each terminal has independent
+window/pane navigation while sharing the same session windows.
 
 **Independent sessions**:
 
