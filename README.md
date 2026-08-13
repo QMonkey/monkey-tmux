@@ -66,12 +66,30 @@ To auto-install missing packages:
 
 ## Auto-start tmux on shell login
 
+> **Warning:** Do NOT set tmux as your login shell (e.g. `chsh -s $(which tmux)`).
+> `login`/`getty` invokes the login shell before `$TERM` is configured, so tmux
+> aborts with `missing or unsuitable terminal: tty1` and the terminal becomes
+> unusable. Keep `/bin/bash` as your shell and auto-start via `.bashrc` instead.
+> Auto-starting via `.bashrc` works fine on TTY/kmscon too, because `$TERM` is
+> already set by the time the shell runs.
+>
+> **Recovery:** Leave the `root` account untouched (default shell, no auto-start
+> script). If a user's shell/rc ever breaks, you can still log in as `root` or
+> drop to single-user mode to fix it.
+
 Add to your `~/.bashrc` or `~/.zshrc`:
+
+- `-z "$TMUX"` — only run when not already inside tmux, preventing nested
+  sessions.
+- `[[ $- == *i* ]]` — only run in interactive shells, so `scp`/`rsync`/`ssh`
+  remote commands don't spawn tmux.
+- `command -v tmux` — skip silently when tmux isn't installed.
+- `exec` — replaces the shell process so `exit` closes the terminal directly.
 
 **Shared session (recommended)**:
 
 ```bash
-if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
+if [[ -z "$TMUX" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
     if tmux has-session -t main 2>/dev/null; then
         exec tmux new-session -t main \; new-window
     else
@@ -88,7 +106,7 @@ window/pane navigation while sharing the same session windows.
 **Independent sessions**:
 
 ```bash
-if [[ -z "$TMUX" ]] && command -v tmux >/dev/null; then
+if [[ -z "$TMUX" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
     if ! tmux has-session -t main 2>/dev/null; then
         exec tmux new-session -s main
     else
@@ -103,12 +121,10 @@ names (0, 1, 2…). Requires `@continuum-restore 'on'` in `.tmux.conf`.
 For a desktop-only setup (skip TTY):
 
 ```bash
-if [[ -z "$TMUX" ]] && [[ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]] && command -v tmux >/dev/null; then
+if [[ -z "$TMUX" ]] && [[ $- == *i* ]] && [[ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]] && command -v tmux >/dev/null; then
     # use shared session or independent sessions logic above
 fi
 ```
-
-`exec` replaces the shell process so `exit` closes the terminal directly.
 
 ## Theme
 
