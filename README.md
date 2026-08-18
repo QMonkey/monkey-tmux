@@ -16,7 +16,9 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Search**: `tmux-copycat` for regex, urls, files, git hashes
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
-- **Status bar**: tmux-power block theme with session, hostname, time, battery
+- **Status bar**: custom Sonokai andromeda theme with session, hostname, time, battery
+- **AI agent monitoring**: `tmux-scout` status widget + fzf picker for tracking AI coding agent sessions
+- **AI session persistence**: `tmux-assistant-resurrect` restores AI coding assistant sessions (Claude Code, OpenCode, etc.) across tmux restarts
 - **Mouse support**: `tmux-better-mouse-mode` for responsive mouse
 - **Modal indicator**: mode indicator (prefix/copy/normal) in status bar
 - **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
@@ -24,7 +26,9 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 ## Requirements
 
 - tmux >= 3.2
-- [fzf](https://github.com/junegunn/fzf) (required for `tmux-fzf`)
+- [fzf](https://github.com/junegunn/fzf) >= 0.51 (required for `tmux-fzf` and `tmux-scout`)
+- [Node.js](https://nodejs.org/) >= 16 (required for `tmux-scout`)
+- [jq](https://jqlang.github.io/jq/) (required for `tmux-assistant-resurrect`)
 - xclip or xsel (Linux, for clipboard)
 
 ### Install fzf
@@ -63,6 +67,34 @@ To auto-install missing packages:
 ```bash
 ./checkhealth.sh --install
 ```
+
+### Install tmux-scout agent hooks
+
+`tmux-scout` tracks AI coding agent sessions via hooks written into each
+agent CLI's config. The plugin loads these hooks once per agent — they are not
+re-run on every tmux start. After `prefix + I`, run this once to wire up all
+installed agents (Claude Code, OpenCode, Cursor, Codex, Gemini, Kimi, Copilot
+CLI, etc.):
+
+```bash
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install
+```
+
+To install hooks for a single agent, or to inspect/clean up:
+
+```bash
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install --claude    # Claude Code only
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install --codex     # Codex only
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install --opencode  # OpenCode only
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install --cursor    # Cursor Agent only
+
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" status   # Check installation status
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" doctor   # Environment diagnostics
+eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" uninstall # Remove all hooks
+```
+
+Re-run `install` only when the plugin directory has moved (e.g. TPM re-cloned
+it to a new path) or when you add a new agent CLI.
 
 ## Auto-start tmux on shell login
 
@@ -128,12 +160,45 @@ fi
 
 ## Theme
 
-`tmux-power` with `snow` theme. Block-style separators (TTY-safe).
+Custom hand-written theme using the **Sonokai andromeda** palette. Colors are
+defined once as `@thm_*` variables and referenced throughout the status bar
+and UI styles.
 
-To change theme, modify `@tmux_power_theme` in `.tmux.conf`:
 ```tmux
-set -g @tmux_power_theme 'everforest'  # also: moon, coral, gold, forest, violet, redwine, sky, snow
+# .tmux.conf — color palette (truecolor hex)
+set -g @thm_bg      '#2c2e34'
+set -g @thm_fg      '#c5c5c9'
+set -g @thm_muted   '#7e7e86'
+set -g @thm_gray    '#363844'
+set -g @thm_blue    '#7aa5ff'
+set -g @thm_cyan    '#6dcae8'
+set -g @thm_soft    '#e1e3e4'
+set -g @thm_coal    '#333648'
+set -g @thm_slate   '#3f445b'
+set -g @thm_green   '#a7df78'
+set -g @thm_orange  '#f39660'
+set -g @thm_red     '#fc5d7c'
+set -g @thm_purple  '#b39df2'
 ```
+
+Status sections map to these colors:
+
+| Section | Color |
+|---------|-------|
+| mode / active-tab / hostname | `@thm_cyan` |
+| session | `@thm_blue` |
+| inactive tab | gray (unchanged) |
+| time + date | `@thm_coal` |
+| battery | `@thm_slate` |
+| free / attention | `@thm_orange` / `@thm_purple` |
+| bell / reject | `@thm_red` |
+
+The palette is truecolor hex by default; on a bare TTY
+(`TERM=linux` & friends) it falls back to the fixed 16-color VGA palette via
+the `%if` block in `.tmux.conf`. Block-style separators only — no powerline
+glyphs, works in any terminal.
+
+To change the theme, edit the `@thm_*` values in `.tmux.conf`.
 
 ## Keyboard shortcuts
 
@@ -267,6 +332,7 @@ Enter with `prefix + [`.
 | `prefix + F` | Fingers hint mode (copy text with hints) |
 | `prefix + J` | Fingers jump mode (jump to hint) |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
+| `prefix + O` | tmux-scout AI agent session picker (fzf) |
 | `prefix + =` | Clipboard buffer history |
 | `prefix + R` | Reload config |
 | `prefix + ?` | List keybindings |
