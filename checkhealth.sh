@@ -75,8 +75,11 @@ check_version() {
 		ALL_PASSED=false
 		return 1
 	fi
-	local ver
-	ver=$("$bin" -V 2>/dev/null | grep -oP '\d+\.\d+' | head -1 || echo "0")
+	local ver=""
+	for flag in -V --version -v; do
+		ver=$("$bin" "$flag" 2>/dev/null | grep -oP '\d+\.\d+' | head -1)
+		[[ -n "$ver" ]] && break
+	done
 	if [[ -z "$ver" ]]; then
 		echo -e "  ${FAIL} ${desc} (could not detect version)"
 		ALL_PASSED=false
@@ -170,14 +173,30 @@ check_bin git "git" || MISSING_REQUIRED+=("git")
 echo ""
 
 # ──── fzf ────
-echo -e "${BOLD}fzf${NC} (required by tmux-fzf)"
-if check_bin fzf "fzf"; then
+echo -e "${BOLD}fzf${NC} (required by tmux-fzf and tmux-scout)"
+if check_version fzf 0.51 "fzf (need >= 0.51 for tmux-scout)"; then
 	:
 else
 	MISSING_REQUIRED+=("fzf")
 fi
 echo ""
 
+# ──── Node.js ────
+echo -e "${BOLD}Node.js${NC} (required by tmux-scout)"
+if check_version node 16 "node (need >= 16 for tmux-scout)"; then
+	:
+else
+	MISSING_REQUIRED+=("node")
+fi
+echo ""
+
+# ──── jq ────
+echo -e "${BOLD}jq${NC} (required by tmux-assistant-resurrect)"
+if check_bin jq "jq"; then
+	:
+else
+	MISSING_REQUIRED+=("jq")
+fi
 echo ""
 
 # ──── clipboard ────
@@ -286,12 +305,19 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 	declare -A APT_NAMES=(
 		["fzf"]="fzf"
 		["xclip"]="xclip"
+		["node"]="nodejs"
+		["jq"]="jq"
 	)
 	declare -A PACMAN_NAMES=(
 		["fzf"]="fzf"
 		["xclip"]="xclip"
+		["node"]="nodejs"
+		["jq"]="jq"
 	)
-	declare -A BREW_NAMES=()
+	declare -A BREW_NAMES=(
+		["node"]="node"
+		["jq"]="jq"
+	)
 
 	pkg_name() {
 		local bin="$1"
