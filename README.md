@@ -96,6 +96,26 @@ eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" uninstall 
 Re-run `install` only when the plugin directory has moved (e.g. TPM re-cloned
 it to a new path) or when you add a new agent CLI.
 
+### tmux-scout status bar
+
+`tmux-scout` shows a `W|B|D|I` counter in `status-right` summarizing all
+tracked AI agent sessions. The letters are session counts, not raw statuses:
+
+| Letter | Meaning | Color |
+|--------|---------|-------|
+| `W` | waiting for your input (approval / question / plan) | red `#fc5d7c` |
+| `B` | busy — agent is running a prompt or tool | orange `#f39660` |
+| `D` | done — latest turn completed | green `#a7df78` |
+| `I` | idle — internal placeholder, effectively never shown | blue `#7aa5ff` |
+
+The `I` (idle) counter is an internal tmux-scout placeholder for
+process-only-discovered sessions and is hidden from the picker, so in practice
+you will only ever see `W`, `B`, and `D`.
+
+The segment is clickable (opens the picker) but has no underline hint; the
+underline was disabled via `@scout-status-click-style off`. Open the full
+picker with `prefix + O`.
+
 ## Auto-start tmux on shell login
 
 > **Warning:** Do NOT set tmux as your login shell (e.g. `chsh -s $(which tmux)`).
