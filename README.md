@@ -218,10 +218,10 @@ Status sections map to these colors:
 | free / attention | `@thm_orange` / `@thm_purple` |
 | bell / reject | `@thm_red` |
 
-The palette is truecolor hex by default; on a bare TTY
-(`TERM=linux` & friends) it falls back to the fixed 16-color VGA palette via
-the `%if` block in `.tmux.conf`. Block-style separators only — no powerline
-glyphs, works in any terminal.
+The palette is truecolor hex by default; on a bare Linux TTY
+(`TERM=linux`) it falls back to the fixed 16-color VGA palette via the `%if`
+block in `.tmux.conf`. Block-style separators only — no powerline glyphs,
+works in any terminal.
 
 To change the theme, edit the `@thm_*` values in `.tmux.conf`.
 
