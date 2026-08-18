@@ -103,10 +103,13 @@ tracked AI agent sessions. The letters are session counts, not raw statuses:
 
 | Letter | Meaning | Color |
 |--------|---------|-------|
-| `W` | waiting for your input (approval / question / plan) | red `#fc5d7c` |
-| `B` | busy — agent is running a prompt or tool | orange `#f39660` |
-| `D` | done — latest turn completed | green `#a7df78` |
-| `I` | idle — internal placeholder, effectively never shown | blue `#7aa5ff` |
+| `W` | waiting for your input (approval / question / plan) | `@thm_red` `#fb617e` |
+| `B` | busy — agent is running a prompt or tool | `@thm_orange` `#f89860` |
+| `D` | done — latest turn completed | `@thm_green` `#9ed06c` |
+| `I` | idle — internal placeholder, effectively never shown | `@thm_blue` `#7aa5ff` |
+
+Separators use `@thm_muted` `#7e8294`. Colors are defined via `set -gF` with
+`#{@thm_*}` references, so they track the theme palette automatically.
 
 The `I` (idle) counter is an internal tmux-scout placeholder for
 process-only-discovered sessions and is hidden from the picker, so in practice
@@ -185,29 +188,31 @@ defined once as `@thm_*` variables and referenced throughout the status bar
 and UI styles.
 
 ```tmux
-# .tmux.conf — color palette (truecolor hex)
-set -g @thm_bg      '#2c2e34'
-set -g @thm_fg      '#c5c5c9'
-set -g @thm_muted   '#7e7e86'
-set -g @thm_gray    '#363844'
-set -g @thm_blue    '#7aa5ff'
-set -g @thm_cyan    '#6dcae8'
-set -g @thm_soft    '#e1e3e4'
-set -g @thm_coal    '#333648'
-set -g @thm_slate   '#3f445b'
-set -g @thm_green   '#a7df78'
-set -g @thm_orange  '#f39660'
-set -g @thm_red     '#fc5d7c'
-set -g @thm_purple  '#b39df2'
+# .tmux.conf — color palette (truecolor hex, Sonokai andromeda)
+set -g @thm_bg        '#2b2d3a'  # bg0 — main / pane background
+set -g @thm_status_bg '#393e53'  # bg3 — status bar background (StatusLine)
+set -g @thm_fg        '#e1e3e4'  # fg — foreground text
+set -g @thm_muted     '#7e8294'  # grey — inactive tab
+set -g @thm_gray      '#363a4e'  # bg2 — message background
+set -g @thm_blue      '#7aa5ff'  # session (custom accent)
+set -g @thm_cyan      '#6dcae8'  # blue — mode / active tab / hostname
+set -g @thm_soft      '#e1e3e4'  # fg — light text on dark blocks
+set -g @thm_coal      '#333648'  # bg1 — time + date block
+set -g @thm_slate     '#3f445b'  # bg4 — battery block
+set -g @thm_green     '#9ed06c'  # green — done / activity
+set -g @thm_orange    '#f89860'  # orange — attention
+set -g @thm_red       '#fb617e'  # red — bell / reject
+set -g @thm_purple    '#bb97ee'  # purple — free
 ```
 
 Status sections map to these colors:
 
 | Section | Color |
 |---------|-------|
+| status bar background | `@thm_status_bg` |
 | mode / active-tab / hostname | `@thm_cyan` |
 | session | `@thm_blue` |
-| inactive tab | gray (unchanged) |
+| inactive tab | `@thm_muted` |
 | time + date | `@thm_coal` |
 | battery | `@thm_slate` |
 | free / attention | `@thm_orange` / `@thm_purple` |
