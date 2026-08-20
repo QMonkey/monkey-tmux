@@ -98,7 +98,7 @@ it to a new path) or when you add a new agent CLI.
 
 ### tmux-scout status bar
 
-`tmux-scout` shows a `W|B|D|I` counter in `status-right` summarizing all
+`tmux-scout` shows a `W|B|D` counter in `status-right` summarizing all
 tracked AI agent sessions. The letters are session counts, not raw statuses:
 
 | Letter | Meaning | Color |
@@ -106,14 +106,13 @@ tracked AI agent sessions. The letters are session counts, not raw statuses:
 | `W` | waiting for your input (approval / question / plan) | `@thm_red` `#fb617e` |
 | `B` | busy — agent is running a prompt or tool | `@thm_orange` `#f89860` |
 | `D` | done — latest turn completed | `@thm_green` `#9ed06c` |
-| `I` | idle — internal placeholder, effectively never shown | `@thm_blue` `#7aa5ff` |
 
 Separators use `@thm_muted` `#7e8294`. Colors are defined via `set -gF` with
 `#{@thm_*}` references, so they track the theme palette automatically.
 
-The `I` (idle) counter is an internal tmux-scout placeholder for
-process-only-discovered sessions and is hidden from the picker, so in practice
-you will only ever see `W`, `B`, and `D`.
+The `I` (idle) placeholder is intentionally omitted: it is an internal
+tmux-scout placeholder for process-only-discovered sessions that never reaches
+the picker, so only `W`, `B`, and `D` are shown.
 
 The segment is clickable (opens the picker) but has no underline hint; the
 underline was disabled via `@scout-status-click-style off`. Open the full
@@ -216,6 +215,13 @@ Status sections map to these colors:
 | time + date | `@thm_coal` |
 | battery | `@thm_slate` |
 | free / attention | `@thm_orange` / `@thm_purple` |
+
+The battery block is shown only when a real battery is present. On Linux it
+checks `/sys/class/power_supply/*/type` for a `Battery` entry (a bare dir check
+isn't enough — desktops have `Mains`/`USB` supplies); on macOS it requires
+`pmset -g batt` to report `present: true` (so desktop Macs never show a bogus
+`BAT:0%`). Other platforms let the plugin try. The gate is the `@battery_enabled`
+option set via `if-shell` in `.tmux.conf`.
 | bell / reject | `@thm_red` |
 
 The palette is truecolor hex by default; on a bare Linux TTY
