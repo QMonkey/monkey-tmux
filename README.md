@@ -382,11 +382,27 @@ sessionist's join-pane.
 | `prefix + =` | Clipboard buffer history |
 | `prefix + R` | Reload config |
 | `prefix + ?` | List keybindings |
-| `prefix + :` | Command mode |
+| `prefix + :` | Command prompt (tmux commands) |
 | `prefix + y` | Copy command line to clipboard |
 | `prefix + Y` | Copy pane CWD to clipboard |
 | `prefix + d` | Detach client |
 | `prefix + D` | Choose client to detach |
+
+### Command prompt key bindings
+
+The `prefix + :` prompt (a single-line command editor) uses **emacs** keys
+(`status-keys emacs`); copy mode uses **vi** keys (`mode-keys vi`).
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Previous / next command from history |
+| `C-a` / `C-e` | Start / end of line |
+| `C-k` | Delete to end of line |
+| `C-u` | Delete entire line |
+| `M-f` / `M-b` | Forward / backward one word |
+| `Tab` | Completion |
+| `C-y` | Insert top paste buffer |
+| `Esc` | Cancel |
 
 ## Configuration
 
