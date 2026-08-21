@@ -316,14 +316,29 @@ Enter with `prefix + [`.
 | `Y` | Copy to tmux buffer (put) |
 | `M-y` | Yank and put (copy + paste) |
 | `Esc` / `q` | Cancel/exit |
-| `/` / `?` | Search forward/backward |
+| `/` / `?` | Search forward/backward (regex) |
 | `n` / `N` | Next/previous match |
+| `*` / `#` | Search forward/backward for word under cursor |
 | `f` / `F` | Jump forward/backward |
 | `t` / `T` | Jump to forward/backward |
 | `{` / `}` | Previous/next paragraph |
 | `%` | Matching bracket |
 | `o` | Open selection with system handler |
 | `C-o` | Open selection in \$EDITOR |
+
+### Search (native regex)
+
+tmux >= 3.1 has built-in regex search — `tmux-copycat` is no longer needed.
+
+| Key | Action |
+|-----|--------|
+| `prefix + /` | Enter copy mode and start a regex search (forward) |
+| `/` / `?` | Search forward/backward (inside copy mode) |
+| `n` / `N` | Next/previous match |
+| `*` / `#` | Search for word under cursor |
+
+`prefix + /` is bound to `copy-mode` + `search-forward` in `.tmux.conf`,
+replacing `tmux-copycat`'s `prefix + /`.
 
 ### Logging
 
@@ -342,12 +357,26 @@ Enter with `prefix + [`.
 | `prefix + U` | Update plugins |
 | `prefix + M-u` | Uninstall unused plugins |
 
+### Fingers (hint-based copy / jump)
+
+`tmux-fingers` highlights matches (words, paths, hashes, etc.) with letter
+hints; press the hint letters to act on a match.
+
+| Key | Action |
+|-----|--------|
+| `prefix + F` | Hint mode: select a match to copy it to the clipboard |
+| `prefix + T` | Jump mode: select a match to move the cursor to it |
+| `TAB` | Toggle multi mode (select multiple matches) |
+| `q` / `Esc` / `C-c` | Exit fingers mode |
+
+`prefix + T` (jump mode) is bound to `T` — not the upstream default `J` — to
+keep `prefix + J` free for pain-control's resize-down and `prefix + t` for
+sessionist's join-pane.
+
 ### Other
 
 | Key | Action |
 |-----|--------|
-| `prefix + F` | Fingers hint mode (copy text with hints) |
-| `prefix + T` | Fingers jump mode (jump to hint) |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
 | `prefix + O` | tmux-scout AI agent session picker (fzf) |
 | `prefix + =` | Clipboard buffer history |
