@@ -13,13 +13,12 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Fuzz copy**: `tmux-fingers` provides vimium-style hint-based copy/paste
 - **Pane/window management**: standard keybindings + `tmux-pain-control` + `tmux-sessionist`
 - **fzf integration**: prefix+Q for fuzzy session/window/pane/command/keybinding search
-- **Search**: `tmux-copycat` for regex, urls, files, git hashes
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
 - **Status bar**: custom Sonokai andromeda theme with session, hostname, time, battery
 - **AI agent monitoring**: `tmux-scout` status widget + fzf picker for tracking AI coding agent sessions
 - **AI session persistence**: `tmux-assistant-resurrect` restores AI coding assistant sessions (Claude Code, OpenCode, etc.) across tmux restarts
-- **Mouse support**: `tmux-better-mouse-mode` for responsive mouse
+- **Mouse support**: native tmux mouse (`set -g mouse on`)
 - **Modal indicator**: mode indicator (prefix/copy/normal) in status bar
 - **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
 
@@ -326,19 +325,6 @@ Enter with `prefix + [`.
 | `o` | Open selection with system handler |
 | `C-o` | Open selection in \$EDITOR |
 
-### Search
-
-| Key | Action |
-|-----|--------|
-| `prefix + /` | Regex search |
-| `prefix + C-f` | File search |
-| `prefix + C-u` | URL search |
-| `prefix + M-h` | SHA-1 hash search |
-| `prefix + C-g` | Git status file search |
-| `prefix + C-d` | Number search |
-| `prefix + M-i` | IP address search |
-| `n` / `N` | Next/previous match (copy mode) |
-
 ### Logging
 
 | Key | Action |
@@ -361,7 +347,7 @@ Enter with `prefix + [`.
 | Key | Action |
 |-----|--------|
 | `prefix + F` | Fingers hint mode (copy text with hints) |
-| `prefix + J` | Fingers jump mode (jump to hint) |
+| `prefix + T` | Fingers jump mode (jump to hint) |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
 | `prefix + O` | tmux-scout AI agent session picker (fzf) |
 | `prefix + =` | Clipboard buffer history |
