@@ -103,6 +103,8 @@ os_detect() {
 			case "$ID" in
 			ubuntu | debian | linuxmint | pop | elementary | zorin) echo "debian" ;;
 			arch | manjaro | endeavouros) echo "arch" ;;
+			opensuse | opensuse-leap | opensuse-tumbleweed | opensuse-microos | suse | sles) echo "opensuse" ;;
+			centos | rhel | fedora | rocky | almalinux | ol) echo "centos" ;;
 			*) echo "linux-unknown" ;;
 			esac
 		else
@@ -129,6 +131,11 @@ install_pkg() {
 	case "$OS" in
 	debian) sudo_cmd apt-get install -y "$@" ;;
 	arch) sudo_cmd pacman -S --noconfirm "$@" ;;
+	opensuse) sudo_cmd zypper --non-interactive install -y "$@" ;;
+	centos)
+		sudo_cmd dnf install -y epel-release || true
+		sudo_cmd dnf install -y "$@"
+		;;
 	macos) brew install "$@" ;;
 	*) return 1 ;;
 	esac
@@ -138,6 +145,8 @@ get_install_hint() {
 	case "$OS" in
 	debian) echo "sudo apt-get install ${*}" ;;
 	arch) echo "sudo pacman -S ${*}" ;;
+	opensuse) echo "sudo zypper install ${*}" ;;
+	centos) echo "sudo dnf install ${*}" ;;
 	macos) echo "brew install ${*}" ;;
 	*) echo "install ${*} manually" ;;
 	esac
@@ -159,6 +168,8 @@ echo -e "  OS: ${CYAN}$(uname -s)${NC}"
 case "$OS" in
 debian) echo -e "  Package manager: ${CYAN}apt${NC}" ;;
 arch) echo -e "  Package manager: ${CYAN}pacman${NC}" ;;
+opensuse) echo -e "  Package manager: ${CYAN}zypper${NC}" ;;
+centos) echo -e "  Package manager: ${CYAN}dnf${NC}" ;;
 macos) echo -e "  Package manager: ${CYAN}homebrew${NC}" ;;
 *) echo -e "  ${WARN} Unsupported OS — install dependencies manually" ;;
 esac
@@ -314,6 +325,18 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["node"]="nodejs"
 		["jq"]="jq"
 	)
+	declare -A ZYPPER_NAMES=(
+		["fzf"]="fzf"
+		["xclip"]="xclip"
+		["node"]="nodejs"
+		["jq"]="jq"
+	)
+	declare -A YUM_NAMES=(
+		["fzf"]="fzf"
+		["xclip"]="xclip"
+		["node"]="nodejs"
+		["jq"]="jq"
+	)
 	declare -A BREW_NAMES=(
 		["node"]="node"
 		["jq"]="jq"
@@ -324,6 +347,8 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		case "$OS" in
 		debian) echo "${APT_NAMES[$bin]:-$bin}" ;;
 		arch) echo "${PACMAN_NAMES[$bin]:-$bin}" ;;
+		opensuse) echo "${ZYPPER_NAMES[$bin]:-$bin}" ;;
+		centos) echo "${YUM_NAMES[$bin]:-$bin}" ;;
 		macos) echo "${BREW_NAMES[$bin]:-$bin}" ;;
 		*) echo "$bin" ;;
 		esac
