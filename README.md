@@ -36,6 +36,16 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 # Ubuntu/Debian
 sudo apt-get install fzf
 
+# OpenSUSE
+sudo zypper install fzf
+
+# CentOS (enable EPEL first)
+sudo dnf install epel-release
+sudo dnf install fzf
+
+# Arch Linux
+sudo pacman -S fzf
+
 # macOS
 brew install fzf
 
