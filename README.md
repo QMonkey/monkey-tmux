@@ -16,6 +16,7 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
 - **Status bar**: custom Sonokai andromeda theme with session, hostname, time, battery
+- **Automatic window naming**: tabs show `index.name`, where `name` is `process:directory` (basename), `process:~` in home, or `ssh` for remote sessions
 - **AI agent monitoring**: `tmux-scout` status widget + fzf picker for tracking AI coding agent sessions
 - **AI session persistence**: `tmux-assistant-resurrect` restores AI coding assistant sessions (Claude Code, OpenCode, etc.) across tmux restarts
 - **Mouse support**: native tmux mouse (`set -g mouse on`)
@@ -110,11 +111,11 @@ it to a new path) or when you add a new agent CLI.
 `tmux-scout` shows a `W|B|D` counter in `status-right` summarizing all
 tracked AI agent sessions. The letters are session counts, not raw statuses:
 
-| Letter | Meaning | Color |
-|--------|---------|-------|
-| `W` | waiting for your input (approval / question / plan) | `@thm_red` `#fb617e` |
-| `B` | busy — agent is running a prompt or tool | `@thm_orange` `#f89860` |
-| `D` | done — latest turn completed | `@thm_green` `#9ed06c` |
+| Letter | Meaning                                             | Color                   |
+| ------ | --------------------------------------------------- | ----------------------- |
+| `W`    | waiting for your input (approval / question / plan) | `@thm_red` `#fb617e`    |
+| `B`    | busy — agent is running a prompt or tool            | `@thm_orange` `#f89860` |
+| `D`    | done — latest turn completed                        | `@thm_green` `#9ed06c`  |
 
 Separators use `@thm_muted` `#7e8294`. Colors are defined via `set -gF` with
 `#{@thm_*}` references, so they track the theme palette automatically.
@@ -126,6 +127,20 @@ the picker, so only `W`, `B`, and `D` are shown.
 The segment is clickable (opens the picker) but has no underline hint; the
 underline was disabled via `@scout-status-click-style off`. Open the full
 picker with `prefix + O`.
+
+### Window naming
+
+Tabs are named automatically (`automatic-rename on` + custom
+`automatic-rename-format`) and displayed as `index.name`:
+
+- normal: `process:directory` (directory is the basename of the active pane's
+  working directory, e.g. `zsh:monkey-tmux`)
+- in `$HOME`: `process:~` (e.g. `zsh:~`)
+- over SSH: `ssh` (the local working directory would be misleading)
+
+Names refresh when the foreground process changes — after `cd`, the tab
+updates when you run the next command. `set-titles-string` uses the same
+format, so the terminal window title matches the tab.
 
 ## Auto-start tmux on shell login
 
@@ -215,15 +230,15 @@ set -g @thm_purple    '#bb97ee'  # purple — free
 
 Status sections map to these colors:
 
-| Section | Color |
-|---------|-------|
-| status bar background | `@thm_status_bg` |
-| mode / active-tab / hostname | `@thm_cyan` |
-| session | `@thm_blue` |
-| inactive tab | `@thm_muted` |
-| time + date | `@thm_coal` |
-| battery | `@thm_slate` |
-| free / attention | `@thm_orange` / `@thm_purple` |
+| Section                      | Color                         |
+| ---------------------------- | ----------------------------- |
+| status bar background        | `@thm_status_bg`              |
+| mode / active-tab / hostname | `@thm_cyan`                   |
+| session                      | `@thm_blue`                   |
+| inactive tab                 | `@thm_muted`                  |
+| time + date                  | `@thm_coal`                   |
+| battery                      | `@thm_slate`                  |
+| free / attention             | `@thm_orange` / `@thm_purple` |
 
 The battery block is shown only when a real battery is present. On Linux it
 checks `/sys/class/power_supply/*/type` for a `Battery` entry (a bare dir check
@@ -246,125 +261,125 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 
 ### Session
 
-| Key | Action |
-|-----|--------|
-| `prefix + C-s` | Save session |
-| `prefix + C-r` | Restore session |
-| `prefix + g` | Switch to session (prompt) |
-| `prefix + s` | Choose session from list |
-| `prefix + S` | Switch to last session |
-| `prefix + (` | Previous session |
-| `prefix + )` | Next session |
-| `prefix + C` | Create session by name |
-| `prefix + X` | Kill current session |
-| `prefix + @` | Promote pane to new session |
+| Key                | Action                        |
+| ------------------ | ----------------------------- |
+| `prefix + C-s`     | Save session                  |
+| `prefix + C-r`     | Restore session               |
+| `prefix + g`       | Switch to session (prompt)    |
+| `prefix + s`       | Choose session from list      |
+| `prefix + S`       | Switch to last session        |
+| `prefix + (`       | Previous session              |
+| `prefix + )`       | Next session                  |
+| `prefix + C`       | Create session by name        |
+| `prefix + X`       | Kill current session          |
+| `prefix + @`       | Promote pane to new session   |
 | `prefix + C-Space` | Promote window to new session |
-| `prefix + t` | Join pane into current window |
-| `prefix + $` | Rename session |
+| `prefix + t`       | Join pane into current window |
+| `prefix + $`       | Rename session                |
 
 ### Window (tab)
 
-| Key | Action |
-|-----|--------|
-| `prefix + c` | Create window |
-| `prefix + w` | Choose window from list |
-| `prefix + f` | Find window |
-| `prefix + 1~9` | Switch to window 1-9 |
-| `prefix + n` / `C-n` | Next window |
-| `prefix + p` / `C-p` | Previous window |
-| `prefix + a` | Last window |
-| `prefix + Tab` | Last window |
-| `prefix + ,` | Rename window |
-| `prefix + &` | Kill window |
-| `prefix + <` | Move window left |
-| `prefix + >` | Move window right |
+| Key                  | Action                  |
+| -------------------- | ----------------------- |
+| `prefix + c`         | Create window           |
+| `prefix + w`         | Choose window from list |
+| `prefix + f`         | Find window             |
+| `prefix + 1~9`       | Switch to window 1-9    |
+| `prefix + n` / `C-n` | Next window             |
+| `prefix + p` / `C-p` | Previous window         |
+| `prefix + a`         | Last window             |
+| `prefix + Tab`       | Last window             |
+| `prefix + ,`         | Rename window           |
+| `prefix + &`         | Kill window             |
+| `prefix + <`         | Move window left        |
+| `prefix + >`         | Move window right       |
 
 ### Pane (split)
 
-| Key | Action |
-|-----|--------|
-| `prefix + \|` | Split vertically |
-| `prefix + \` | Split vertically (full width) |
-| `prefix + -` | Split horizontally |
-| `prefix + _` | Split horizontally (full height) |
-| `prefix + h` / `C-h` | Left pane |
-| `prefix + j` / `C-j` | Down pane |
-| `prefix + k` / `C-k` | Up pane |
-| `prefix + l` / `C-l` | Right pane |
-| `prefix + ;` | Last pane |
-| `prefix + o` | Next pane |
-| `prefix + x` | Kill pane |
-| `prefix + z` | Toggle zoom |
-| `prefix + {` / `}` | Swap pane position |
-| `prefix + E` | Toggle synchronize-panes |
-| `prefix + q` | Display pane numbers |
-| `prefix + H/J/K/L` | Resize pane 5 cells |
-| `prefix + !` | Move pane to new window |
-| `prefix + m` | Mark pane |
+| Key                  | Action                           |
+| -------------------- | -------------------------------- |
+| `prefix + \|`        | Split vertically                 |
+| `prefix + \`         | Split vertically (full width)    |
+| `prefix + -`         | Split horizontally               |
+| `prefix + _`         | Split horizontally (full height) |
+| `prefix + h` / `C-h` | Left pane                        |
+| `prefix + j` / `C-j` | Down pane                        |
+| `prefix + k` / `C-k` | Up pane                          |
+| `prefix + l` / `C-l` | Right pane                       |
+| `prefix + ;`         | Last pane                        |
+| `prefix + o`         | Next pane                        |
+| `prefix + x`         | Kill pane                        |
+| `prefix + z`         | Toggle zoom                      |
+| `prefix + {` / `}`   | Swap pane position               |
+| `prefix + E`         | Toggle synchronize-panes         |
+| `prefix + q`         | Display pane numbers             |
+| `prefix + H/J/K/L`   | Resize pane 5 cells              |
+| `prefix + !`         | Move pane to new window          |
+| `prefix + m`         | Mark pane                        |
 
 ### Copy mode (vi-style)
 
 Enter with `prefix + [`.
 
-| Key | Action |
-|-----|--------|
-| `h/j/k/l` | Cursor movement |
-| `w/b` | Next/previous word |
-| `H` | Start of line |
-| `L` | End of line |
-| `0` | Start of line (alt) |
-| `^` | Back to indentation |
-| `$` | End of line (alt) |
-| `gg` / `G` | Top/bottom of buffer |
-| `C-f` / `C-b` | Page down/up |
-| `C-d` / `C-u` | Half page down/up |
-| `J` / `K` | Scroll down/up |
-| `v` | Begin selection (character) |
-| `V` | Select line |
-| `C-v` | Rectangle selection (begin) |
-| `y` | Copy to clipboard |
-| `Y` | Copy to tmux buffer (put) |
-| `M-y` | Yank and put (copy + paste) |
-| `Esc` / `q` | Cancel/exit |
-| `/` / `?` | Search forward/backward (regex) |
-| `n` / `N` | Next/previous match |
-| `*` / `#` | Search forward/backward for word under cursor |
-| `f` / `F` | Jump forward/backward |
-| `t` / `T` | Jump to forward/backward |
-| `{` / `}` | Previous/next paragraph |
-| `%` | Matching bracket |
-| `o` | Open selection with system handler |
-| `C-o` | Open selection in \$EDITOR |
+| Key           | Action                                        |
+| ------------- | --------------------------------------------- |
+| `h/j/k/l`     | Cursor movement                               |
+| `w/b`         | Next/previous word                            |
+| `H`           | Start of line                                 |
+| `L`           | End of line                                   |
+| `0`           | Start of line (alt)                           |
+| `^`           | Back to indentation                           |
+| `$`           | End of line (alt)                             |
+| `gg` / `G`    | Top/bottom of buffer                          |
+| `C-f` / `C-b` | Page down/up                                  |
+| `C-d` / `C-u` | Half page down/up                             |
+| `J` / `K`     | Scroll down/up                                |
+| `v`           | Begin selection (character)                   |
+| `V`           | Select line                                   |
+| `C-v`         | Rectangle selection (begin)                   |
+| `y`           | Copy to clipboard                             |
+| `Y`           | Copy to tmux buffer (put)                     |
+| `M-y`         | Yank and put (copy + paste)                   |
+| `Esc` / `q`   | Cancel/exit                                   |
+| `/` / `?`     | Search forward/backward (regex)               |
+| `n` / `N`     | Next/previous match                           |
+| `*` / `#`     | Search forward/backward for word under cursor |
+| `f` / `F`     | Jump forward/backward                         |
+| `t` / `T`     | Jump to forward/backward                      |
+| `{` / `}`     | Previous/next paragraph                       |
+| `%`           | Matching bracket                              |
+| `o`           | Open selection with system handler            |
+| `C-o`         | Open selection in \$EDITOR                    |
 
 ### Search (native regex)
 
 tmux >= 3.1 has built-in regex search — `tmux-copycat` is no longer needed.
 
-| Key | Action |
-|-----|--------|
+| Key          | Action                                             |
+| ------------ | -------------------------------------------------- |
 | `prefix + /` | Enter copy mode and start a regex search (forward) |
-| `/` / `?` | Search forward/backward (inside copy mode) |
-| `n` / `N` | Next/previous match |
-| `*` / `#` | Search for word under cursor |
+| `/` / `?`    | Search forward/backward (inside copy mode)         |
+| `n` / `N`    | Next/previous match                                |
+| `*` / `#`    | Search for word under cursor                       |
 
 `prefix + /` is bound to `copy-mode` + `search-forward` in `.tmux.conf`,
 replacing `tmux-copycat`'s `prefix + /`.
 
 ### Logging
 
-| Key | Action |
-|-----|--------|
-| `prefix + P` | Toggle logging |
-| `prefix + M-p` | Save visible text |
+| Key            | Action                |
+| -------------- | --------------------- |
+| `prefix + P`   | Toggle logging        |
+| `prefix + M-p` | Save visible text     |
 | `prefix + M-P` | Save complete history |
-| `prefix + M-c` | Clear pane history |
+| `prefix + M-c` | Clear pane history    |
 
 ### TPM (plugin manager)
 
-| Key | Action |
-|-----|--------|
-| `prefix + I` | Install plugins |
-| `prefix + U` | Update plugins |
+| Key            | Action                   |
+| -------------- | ------------------------ |
+| `prefix + I`   | Install plugins          |
+| `prefix + U`   | Update plugins           |
 | `prefix + M-u` | Uninstall unused plugins |
 
 ### Fingers (hint-based copy / jump)
@@ -372,12 +387,12 @@ replacing `tmux-copycat`'s `prefix + /`.
 `tmux-fingers` highlights matches (words, paths, hashes, etc.) with letter
 hints; press the hint letters to act on a match.
 
-| Key | Action |
-|-----|--------|
-| `prefix + F` | Hint mode: select a match to copy it to the clipboard |
-| `prefix + T` | Jump mode: select a match to move the cursor to it |
-| `TAB` | Toggle multi mode (select multiple matches) |
-| `q` / `Esc` / `C-c` | Exit fingers mode |
+| Key                 | Action                                                |
+| ------------------- | ----------------------------------------------------- |
+| `prefix + F`        | Hint mode: select a match to copy it to the clipboard |
+| `prefix + T`        | Jump mode: select a match to move the cursor to it    |
+| `TAB`               | Toggle multi mode (select multiple matches)           |
+| `q` / `Esc` / `C-c` | Exit fingers mode                                     |
 
 `prefix + T` (jump mode) is bound to `T` — not the upstream default `J` — to
 keep `prefix + J` free for pain-control's resize-down and `prefix + t` for
@@ -385,34 +400,34 @@ sessionist's join-pane.
 
 ### Other
 
-| Key | Action |
-|-----|--------|
+| Key          | Action                                              |
+| ------------ | --------------------------------------------------- |
 | `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
-| `prefix + O` | tmux-scout AI agent session picker (fzf) |
-| `prefix + =` | Clipboard buffer history |
-| `prefix + R` | Reload config |
-| `prefix + ?` | List keybindings |
-| `prefix + :` | Command prompt (tmux commands) |
-| `prefix + y` | Copy command line to clipboard |
-| `prefix + Y` | Copy pane CWD to clipboard |
-| `prefix + d` | Detach client |
-| `prefix + D` | Choose client to detach |
+| `prefix + O` | tmux-scout AI agent session picker (fzf)            |
+| `prefix + =` | Clipboard buffer history                            |
+| `prefix + R` | Reload config                                       |
+| `prefix + ?` | List keybindings                                    |
+| `prefix + :` | Command prompt (tmux commands)                      |
+| `prefix + y` | Copy command line to clipboard                      |
+| `prefix + Y` | Copy pane CWD to clipboard                          |
+| `prefix + d` | Detach client                                       |
+| `prefix + D` | Choose client to detach                             |
 
 ### Command prompt key bindings
 
 The `prefix + :` prompt (a single-line command editor) uses **emacs** keys
 (`status-keys emacs`); copy mode uses **vi** keys (`mode-keys vi`).
 
-| Key | Action |
-|-----|--------|
+| Key           | Action                               |
+| ------------- | ------------------------------------ |
 | `Up` / `Down` | Previous / next command from history |
-| `C-a` / `C-e` | Start / end of line |
-| `C-k` | Delete to end of line |
-| `C-u` | Delete entire line |
-| `M-f` / `M-b` | Forward / backward one word |
-| `Tab` | Completion |
-| `C-y` | Insert top paste buffer |
-| `Esc` | Cancel |
+| `C-a` / `C-e` | Start / end of line                  |
+| `C-k`         | Delete to end of line                |
+| `C-u`         | Delete entire line                   |
+| `M-f` / `M-b` | Forward / backward one word          |
+| `Tab`         | Completion                           |
+| `C-y`         | Insert top paste buffer              |
+| `Esc`         | Cancel                               |
 
 ## Configuration
 
