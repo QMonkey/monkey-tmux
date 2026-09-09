@@ -31,28 +31,24 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - [jq](https://jqlang.github.io/jq/) (required for `tmux-assistant-resurrect`)
 - xclip or xsel (Linux, for clipboard)
 
-### Install fzf
+### Install dependencies
 
 ```bash
 # Ubuntu/Debian
-sudo apt-get install fzf
+sudo apt-get install fzf debianutils
 
 # OpenSUSE
-sudo zypper install fzf
+sudo zypper install fzf which
 
 # CentOS (enable EPEL first)
 sudo dnf install epel-release
-sudo dnf install fzf
+sudo dnf install fzf which
 
 # Arch Linux
-sudo pacman -S fzf
+sudo pacman -S fzf which
 
 # macOS
-brew install fzf
-
-# From source
-git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-~/.fzf/install
+brew install fzf which
 ```
 
 ## Installation

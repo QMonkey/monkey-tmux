@@ -180,6 +180,7 @@ echo -e "${BOLD}Required tools${NC}"
 MISSING_REQUIRED=()
 
 check_bin git "git" || MISSING_REQUIRED+=("git")
+check_bin which "which (needed by fzf-tmux in tmux run-shell)" || MISSING_REQUIRED+=("which")
 
 echo ""
 
@@ -318,28 +319,33 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["xclip"]="xclip"
 		["node"]="nodejs"
 		["jq"]="jq"
+		["which"]="debianutils"
 	)
 	declare -A PACMAN_NAMES=(
 		["fzf"]="fzf"
 		["xclip"]="xclip"
 		["node"]="nodejs"
 		["jq"]="jq"
+		["which"]="which"
 	)
 	declare -A ZYPPER_NAMES=(
 		["fzf"]="fzf"
 		["xclip"]="xclip"
 		["node"]="nodejs"
 		["jq"]="jq"
+		["which"]="which"
 	)
 	declare -A YUM_NAMES=(
 		["fzf"]="fzf"
 		["xclip"]="xclip"
 		["node"]="nodejs"
 		["jq"]="jq"
+		["which"]="which"
 	)
 	declare -A BREW_NAMES=(
 		["node"]="node"
 		["jq"]="jq"
+		["which"]="which"
 	)
 
 	pkg_name() {
