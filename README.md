@@ -11,6 +11,8 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
 - **Vim-style copy mode**: `v/V/C-v` for selection, `H/L` for line nav, `h/j/k/l` for movement
 - **Fuzz copy**: `tmux-fingers` provides vimium-style hint-based copy/paste
+- **Fuzzy completion**: `extrakto` grabs text from pane scrollback into an fzf popup (insert/copy/open/edit/filter)
+- **URL picker**: `prefix + u` fzf-picks URLs in the pane and opens them (`tmux-fzf-url`)
 - **Pane/window management**: standard keybindings + `tmux-pain-control` + `tmux-sessionist`
 - **fzf integration**: prefix+Q for fuzzy session/window/pane/command/keybinding search
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
@@ -26,29 +28,32 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 ## Requirements
 
 - tmux >= 3.2
-- [fzf](https://github.com/junegunn/fzf) >= 0.51 (required for `tmux-fzf` and `tmux-scout`)
+- [fzf](https://github.com/junegunn/fzf) >= 0.51 (required for `tmux-fzf`, `tmux-scout`, `extrakto`, `tmux-fzf-url`)
+- [python3](https://www.python.org/) (required for `extrakto`)
 - [Node.js](https://nodejs.org/) >= 16 (required for `tmux-scout`)
 - [jq](https://jqlang.github.io/jq/) (required for `tmux-assistant-resurrect`)
 - xclip or xsel (Linux, for clipboard)
+
+`tmux-fzf-url` self-installs its bundled `xre` binary on first use (needs `curl`).
 
 ### Install dependencies
 
 ```bash
 # Ubuntu/Debian
-sudo apt-get install fzf debianutils
+sudo apt-get install fzf python3 debianutils
 
 # OpenSUSE
-sudo zypper install fzf which
+sudo zypper install fzf python3 which
 
 # CentOS (enable EPEL first)
 sudo dnf install epel-release
-sudo dnf install fzf which
+sudo dnf install fzf python3 which
 
 # Arch Linux
-sudo pacman -S fzf which
+sudo pacman -S fzf python3 which
 
 # macOS
-brew install fzf which
+brew install fzf python3 which
 ```
 
 ## Installation
@@ -394,6 +399,30 @@ hints; press the hint letters to act on a match.
 keep `prefix + J` free for pain-control's resize-down and `prefix + t` for
 sessionist's join-pane.
 
+### Extrakto (fuzzy completion from scrollback)
+
+`prefix + G` opens an fzf popup with text grabbed from the current pane. Pick
+a completion to insert it into the command line, or use the popup keys shown
+in the fzf header (`i` insert, `c` copy, `o` open, `e` edit, `f` filter,
+`g` re-grab, `h` help) to act on the grabbed text.
+
+| Key          | Action                                      |
+| ------------ | ------------------------------------------- |
+| `prefix + G` | Grab pane text (screen or history) into fzf |
+
+Bound to `G` instead of upstream's default `Tab`, which would clash with
+`prefix + Tab` (last-window).
+
+### URL picker (tmux-fzf-url)
+
+| Key          | Action                                            |
+| ------------ | ------------------------------------------------- |
+| `prefix + u` | fzf over URLs in the pane; Enter opens them       |
+| `ctrl-y`     | In the picker, copy the selected URL to clipboard |
+
+On first use the plugin installs its `xre` binary automatically (`curl` is
+required once).
+
 ### Other
 
 | Key          | Action                                              |
@@ -432,3 +461,39 @@ Edit `~/.tmux.conf`. After changes, reload with `prefix + R`.
 ### Disable auto-start
 
 Remove or comment out `tmux-continuum` from the plugin list.
+
+## Troubleshooting
+
+### WSL: `'... clip.exe' returned 2` / `run-detectors` errors
+
+On WSL2 several plugins shell out to Windows binaries: `tmux-yank` pipes yanks
+to `clip.exe`, `extrakto` copies via `tmux show-buffer|clip.exe`, and
+`tmux-fzf-url` opens URLs via `explorer.exe`. All of these rely on WSL
+interop: the kernel's `binfmt_misc` `WSLInterop` entry matches PE executables
+(magic `MZ`) and delegates them to `/init`, which forwards execution to the
+Windows host.
+
+When that entry goes stale (typically after a WSL kernel or `/init` update),
+every `.exe` fails with `run-detectors: unable to find an interpreter` and
+exit code 2, surfacing in tmux as e.g. `'tmux show-buffer|clip.exe' returned 2`.
+
+Fix (no WSL restart needed) — re-register the binfmt entry against the
+current kernel:
+
+```sh
+sudo sh -c 'echo -1 > /proc/sys/fs/binfmt_misc/WSLInterop && echo ":WSLInterop:M::MZ::/init:PF" > /proc/sys/fs/binfmt_misc/register'
+cmd.exe /c "echo ok"   # verify
+```
+
+WSL re-registers the entry on every VM boot, so this does not need to be
+redone after `wsl --shutdown` or a reboot. If the error reappears on every
+boot, the kernel and `/init` are persistently out of sync — run `wsl --update`
+on the Windows side.
+
+### WSL: `tmux-fzf-url` reports `'... returned 1'` but the URL opens
+
+This is harmless noise: with interop fixed, `explorer.exe` actually runs and
+opens the URL, but it notoriously exits with code 1 even on success (it
+delegates to the running instance). The plugin passes that exit code through.
+No action needed; to silence it, wrap the opener so exit codes `0`/`1` are
+treated as success and point `@fzf-url-open` at the wrapper.
