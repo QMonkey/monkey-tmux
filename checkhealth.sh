@@ -185,7 +185,7 @@ check_bin which "which (needed by fzf-tmux in tmux run-shell)" || MISSING_REQUIR
 echo ""
 
 # ──── fzf ────
-echo -e "${BOLD}fzf${NC} (required by tmux-fzf and tmux-scout)"
+echo -e "${BOLD}fzf${NC} (required by tmux-fzf, tmux-scout, extrakto, tmux-fzf-url)"
 if check_version fzf 0.51 "fzf (need >= 0.51 for tmux-scout)"; then
 	:
 else
@@ -211,10 +211,31 @@ else
 fi
 echo ""
 
+# ──── python3 ────
+echo -e "${BOLD}python3${NC} (required by extrakto)"
+if check_bin python3 "python3"; then
+	:
+else
+	MISSING_REQUIRED+=("python3")
+fi
+echo ""
+
 # ──── clipboard ────
 echo -e "${BOLD}Clipboard${NC} (required by tmux-yank)"
 if [[ "$OS" == "macos" ]]; then
 	check_bin pbcopy "pbcopy (macOS built-in)" || MISSING_REQUIRED+=("pbcopy")
+elif grep -qi microsoft /proc/version 2>/dev/null; then
+	if check_bin clip.exe "clip.exe (WSL)"; then
+		if [[ -r /proc/sys/fs/binfmt_misc/WSLInterop ]] &&
+			[[ "$(head -1 /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null)" == "enabled" ]]; then
+			echo -e "  ${PASS} WSL interop (binfmt WSLInterop enabled)"
+		else
+			echo -e "  ${WARN} WSL interop broken — .exe calls (yank/extrakto/fzf-url) will fail"
+			echo -e "         See README Troubleshooting: re-register /proc/sys/fs/binfmt_misc/WSLInterop"
+		fi
+	else
+		MISSING_REQUIRED+=("clip.exe")
+	fi
 else
 	if check_bin xclip "xclip" 2>/dev/null; then
 		:
@@ -320,6 +341,7 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["node"]="nodejs"
 		["jq"]="jq"
 		["which"]="debianutils"
+		["python3"]="python3"
 	)
 	declare -A PACMAN_NAMES=(
 		["fzf"]="fzf"
@@ -327,6 +349,7 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["node"]="nodejs"
 		["jq"]="jq"
 		["which"]="which"
+		["python3"]="python"
 	)
 	declare -A ZYPPER_NAMES=(
 		["fzf"]="fzf"
@@ -334,6 +357,7 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["node"]="nodejs"
 		["jq"]="jq"
 		["which"]="which"
+		["python3"]="python3"
 	)
 	declare -A YUM_NAMES=(
 		["fzf"]="fzf"
@@ -341,11 +365,13 @@ if $INSTALL_MODE && [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
 		["node"]="nodejs"
 		["jq"]="jq"
 		["which"]="which"
+		["python3"]="python3"
 	)
 	declare -A BREW_NAMES=(
 		["node"]="node"
 		["jq"]="jq"
 		["which"]="which"
+		["python3"]="python3"
 	)
 
 	pkg_name() {
