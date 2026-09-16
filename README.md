@@ -32,7 +32,7 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - [python3](https://www.python.org/) (required for `extrakto`)
 - [Node.js](https://nodejs.org/) >= 16 (required for `tmux-scout`)
 - [jq](https://jqlang.github.io/jq/) (required for `tmux-assistant-resurrect`)
-- xclip or xsel (Linux, for clipboard)
+- xclip, xsel (X11) or [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (Wayland, for clipboard)
 
 `tmux-fzf-url` self-installs its bundled `xre` binary on first use (needs `curl`).
 
@@ -57,6 +57,32 @@ brew install fzf python3 which
 ```
 
 ## Installation
+
+Pick one of the two ways below: a one-click script, or manual setup.
+
+### Option 1: One-click install
+
+Install tmux (system package when possible, built from source only if the distro version is too old or known-broken), all dependencies, and the plugin set automatically:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/install.sh | bash
+```
+
+What the script does, step by step:
+
+1. Install tmux — the system package is preferred (tmux >= 3.2 is all the config needs); if the distro version is too old or a known-bad release (3.7b crashes on session exit), tmux master is built from source into `/usr/local`
+2. Pre-authorize `sudo` once — the only password entry of the whole run — and install a **temporary** NOPASSWD sudoers drop-in for the invoking user, removed automatically on exit. Homebrew resets the sudo timestamp on every `brew` invocation and WSL2 clock jumps invalidate tickets; NOPASSWD makes the run immune to both in any command order. If the drop-in cannot be installed, the script falls back to a background keepalive plus lazy re-authentication
+3. Install Homebrew (Linuxbrew) as the fallback package manager — its shellenv is persisted to your shell rc files (with PATH dedup guards) even when Homebrew already existed
+4. Install `fzf` via Homebrew (tmux-scout needs >= 0.51; distro packages lag far behind)
+5. Clone monkey-tmux to `~/Documents/monkey-tmux` (or update it if already cloned)
+6. Install the remaining dependencies (git, which, node, jq, python3, xclip) via `checkhealth.sh --install`; WSL Windows-PATH shims (`/mnt/...`) are detected and the real Linux packages get installed instead
+7. Symlink `~/.tmux.conf` to the repo, clone TPM, and clone every plugin listed in `.tmux.conf` — no need to press `prefix + I`
+
+> The script keeps the tmux source tree at `~/Documents/tmux` only when the fallback build was used. Once your distro ships a fixed/current tmux, remove `/usr/local/bin/tmux` to fall back to the system package.
+>
+> WSL note: the config yanks through Windows' `clip.exe` on purpose — it is the one "Windows shim" the scripts treat as a first-class tool.
+
+### Option 2: Manual installation
 
 ```bash
 git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
