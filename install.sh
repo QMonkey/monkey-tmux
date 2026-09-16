@@ -243,6 +243,22 @@ setup_sudo() {
 
 # ────────────────── Step 1: Install tmux ──────────────────
 
+# System package manager install. Returns non-zero when the OS is unknown
+# or the manager fails, so callers can fall back to other sources.
+install_with_system_mgr() {
+	case "$OS" in
+	debian) sudo_cmd apt-get install -y "$@" ;;
+	arch) sudo_cmd pacman -S --noconfirm "$@" ;;
+	opensuse) sudo_cmd zypper --non-interactive install -y "$@" ;;
+	centos)
+		sudo_cmd dnf install -y epel-release || true
+		sudo_cmd dnf install -y "$@"
+		;;
+	macos) brew install "$@" ;;
+	*) return 1 ;;
+	esac
+}
+
 tmux_version() {
 	# "tmux 3.7b" -> "3.7b"; also handles "tmux next-3.4".
 	tmux -V 2>/dev/null | grep -oE '[0-9]+\.[0-9]+[a-z]*' | head -1
