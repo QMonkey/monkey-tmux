@@ -447,7 +447,7 @@ run_checkhealth() {
 
 setup_symlinks() {
 	info "Setting up configuration symlinks..."
-	ln -sfn "$INSTALL_DIR/.tmux.conf" "$HOME/.tmux.conf"
+	ln -sf "$INSTALL_DIR/.tmux.conf" "$HOME/.tmux.conf"
 	ok ".tmux.conf → $INSTALL_DIR/.tmux.conf"
 }
 
@@ -481,6 +481,26 @@ install_tpm_and_plugins() {
 		# `set [-a-z]+` also matches `set -as`/`set -gq` plugin declarations.
 	done < <(grep -oE "set -[a-z]+ @plugin [\"'][^\"']+" "$INSTALL_DIR/.tmux.conf" | sed -E "s/set -[a-z]+ @plugin [\"']//")
 	ok "Plugins installed."
+
+# ────────────────── Step 7: Auto-start tmux on shell login ──────────────────
+
+install_autostart() {
+	# Every interactive, non-tmux shell execs into the main session
+	# (self-guarded: no-op when $TMUX is set or the shell is
+	# non-interactive). Write it via append_env_block so it lands in the
+	# profile files with dedup.
+	local block='if [[ -z "$TMUX" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
+    if tmux has-session -t main 2>/dev/null; then
+        exec tmux new-session -t main \; new-window
+    else
+        exec tmux new-session -s main
+    fi
+fi'
+	append_env_block "monkey-tmux auto-start" "$block"
+	ok "tmux auto-start added to shell profiles."
+}
+
+
 }
 
 # ────────────────── Main ──────────────────
@@ -518,6 +538,9 @@ main() {
 	echo ""
 
 	install_tpm_and_plugins
+	echo ""
+
+	install_autostart
 	echo ""
 
 	echo -e "${GREEN}${BOLD}monkey-tmux installation complete!${NC}"
