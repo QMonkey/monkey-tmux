@@ -77,6 +77,7 @@ What the script does, step by step:
 5. Clone monkey-tmux to `~/Documents/monkey-tmux` (or update it if already cloned)
 6. Install the remaining dependencies (git, which, node, jq, python3, xclip) via `checkhealth.sh --install`; WSL Windows-PATH shims (`/mnt/...`) are detected and the real Linux packages get installed instead
 7. Symlink `~/.tmux.conf` to the repo, clone TPM, and clone every plugin listed in `.tmux.conf` — no need to press `prefix + I`
+8. Add the auto-start block to your shell profiles — every interactive non-tmux shell execs into the `main` session (see [Disable auto-start](#disable-auto-start))
 
 > The script keeps the tmux source tree at `~/Documents/tmux` only when the fallback build was used. Once your distro ships a fixed/current tmux, remove `/usr/local/bin/tmux` to fall back to the system package.
 >
