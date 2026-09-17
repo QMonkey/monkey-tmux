@@ -149,16 +149,44 @@ sudo_cmd() {
 	# spring a context-free password prompt. `-n true` never prompts; the
 	# interactive `-v` only runs when the ticket is actually gone.
 	local sudo_bin
-	sudo_bin=$(native_sudo) || { "$@"; return; }
+	sudo_bin=$(native_sudo) || {
+		"$@"
+		return
+	}
 	if ! "$sudo_bin" -n true 2>/dev/null; then
 		"$sudo_bin" -v -p "[monkey-tmux] sudo credentials needed to continue — enter your password: " || return 1
 	fi
 	"$sudo_bin" "$@"
 }
 
+# ────────────────── package index refresh ──────────────────
+# Refresh the package index before installing: a stale or missing index is
+# the usual cause of "Unable to locate package" on freshly provisioned
+# machines. Retried once for transient network failures; a failed refresh
+# is never fatal — the install step still runs. Guarded to at most one
+# refresh per run — call freely before every install.
+PKG_DB_REFRESHED=0
+refresh_pkg() {
+	[ "$PKG_DB_REFRESHED" -eq 1 ] && return 0
+	PKG_DB_REFRESHED=1
+	local attempt
+	for attempt in 1 2; do
+		case "$OS" in
+		debian) sudo_cmd apt-get update ;;
+		arch) sudo_cmd pacman -Sy ;;
+		opensuse) sudo_cmd zypper --non-interactive refresh ;;
+		centos) sudo_cmd dnf makecache -q ;;
+		macos | *) return 0 ;;
+		esac && return 0
+		[ "$attempt" -lt 2 ] && sleep 2
+	done
+	return 0
+}
+
 # System package manager install. Returns non-zero when the OS is unknown
 # or the manager fails, so callers can fall back to other sources.
 install_with_system_mgr() {
+	refresh_pkg
 	case "$OS" in
 	debian) sudo_cmd apt-get install -y "$@" ;;
 	arch) sudo_cmd pacman -S --noconfirm "$@" ;;
