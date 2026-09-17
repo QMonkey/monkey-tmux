@@ -365,6 +365,23 @@ build_tmux_from_source() {
 	hash -r
 }
 
+# ────────────────── Step 0: Ensure git ──────────────────
+
+ensure_git() {
+	# git is needed BEFORE checkhealth.sh --install gets a chance to install
+	# it: the Homebrew installer clones the brew repository, and this script
+	# clones monkey-tmux, the tmux source and the TPM plugins — all of it
+	# happens earlier in the chain.
+	if ! have_native_cmd git; then
+		info "Installing git..."
+		install_with_system_mgr git
+		hash -r
+	fi
+	have_native_cmd git || fail "git installation failed — install it manually (e.g. sudo apt-get install git)."
+}
+
+# ────────────────── Step 1: Install tmux ──────────────────
+
 install_tmux() {
 	if tmux_ok; then
 		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.2, no known-bad release)."
@@ -566,6 +583,9 @@ main() {
 	echo ""
 
 	setup_sudo
+
+	ensure_git
+	echo ""
 
 	install_tmux
 	echo ""
