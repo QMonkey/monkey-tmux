@@ -81,6 +81,10 @@ native_sudo() {
 
 OS=$(os_detect)
 
+# TIOCSTI injection right: a chaining wrapper may pre-set this to its
+# own name — then THIS script must not inject. Standalone runs self-claim.
+ACQUIRE_TIOCSTI="${ACQUIRE_TIOCSTI:-monkey-tmux}"
+
 sudo_cmd() {
 	# Lazy re-auth: Homebrew resets the sudo timestamp on EVERY invocation
 	# (brew.sh runs `sudo --reset-timestamp` at startup), so a ticket that
@@ -97,6 +101,51 @@ sudo_cmd() {
 		"$sudo_bin" -v -p "[monkey-tmux] sudo credentials needed to continue — enter your password: " || return 1
 	fi
 	"$sudo_bin" "$@"
+}
+
+# ────────────────── TIOCSTI injection ──────────────────
+# Type <cmd> + newline into the controlling terminal: the parent shell
+# executes it as if the user had typed it — AFTER this script (and any
+# wrapper chaining it) has fully exited, so injection can never disturb
+# the run itself. Needs python3 or perl; any failure returns non-zero so
+# callers can fall back to a printed hint. Never fatal.
+inject_tty() {
+	local cmd="$1" tiocsti
+	[ -n "$cmd" ] || return 1
+	# No writable controlling terminal (CI, nested pipes) — nothing to
+	# inject into. access(W_OK) on /dev/tty fails with ENXIO when the
+	# process has no controlling tty.
+	[ -w /dev/tty ] || return 1
+	# python3 first: termios.TIOCSTI carries the correct constant per
+	# platform (Linux 0x5412, Darwin 0x80047412).
+	if have_native_cmd python3; then
+		python3 - "$cmd" <<'PYEOF' 2>/dev/null && return 0
+import sys, os, fcntl, termios
+cmd = sys.argv[1] + "\n"
+try:
+    fd = os.open("/dev/tty", os.O_WRONLY)
+    ioctl = termios.TIOCSTI
+except (OSError, AttributeError):
+    sys.exit(1)
+for ch in cmd:
+    try:
+        fcntl.ioctl(fd, ioctl, ord(ch))
+    except OSError:
+        sys.exit(1)
+PYEOF
+	fi
+	# perl fallback: macOS ships /usr/bin/perl, Debian/Ubuntu perl-base is
+	# Essential. TIOCSTI's value differs per platform.
+	tiocsti=0x5412
+	[ "$(uname -s)" = "Darwin" ] && tiocsti=0x80047412
+	perl -e '
+		my ($cmd, $tio) = @ARGV;
+		open(my $tty, ">", "/dev/tty") or exit 1;
+		for my $ch (split //, $cmd . "\n") {
+			ioctl($tty, hex($tio), ord($ch)) or exit 1;
+		}
+	' "$cmd" "$tiocsti" 2>/dev/null && return 0
+	return 1
 }
 
 # Print the shell startup files for the detected shell. Two cases:
@@ -383,6 +432,15 @@ ensure_git() {
 # ────────────────── Step 1: Install tmux ──────────────────
 
 install_tmux() {
+	# openSUSE splits the terminfo database: terminfo-base is minimal and
+	# terminfo-screen carries only screen.* aliases — NO tmux entries in
+	# either (verified against the Leap 16 / Tumbleweed RPM contents).
+	# Without the full terminfo package, every shell inside tmux hits
+	# "tset: unknown terminal type tmux-256color".
+	if [ "$OS" = opensuse ]; then
+		install_with_system_mgr terminfo ||
+			warn "could not install terminfo — tmux may report an unknown terminal type (tmux-256color)."
+	fi
 	if tmux_ok; then
 		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.2, no known-bad release)."
 		return 0
@@ -502,12 +560,36 @@ clone_monkey_tmux() {
 # ────────────────── Step 5: Run checkhealth.sh --install ──────────────────
 
 run_checkhealth() {
+	# PATH preseed before detection: checkhealth runs as a subprocess and
+	# only inherits the current shell's env. persist_path writes the
+	# go/bin & cargo/bin blocks to the profile LATER in main, so on a
+	# first run freshly go/cargo-installed binaries would be reported
+	# missing and re-installed by the retry loop. Export only — nothing
+	# is written to any profile here.
+	case ":$PATH:" in *":$HOME/go/bin:"*) ;; *) export PATH="$HOME/go/bin:$PATH" ;; esac
+	case ":$PATH:" in *":$HOME/.cargo/bin:"*) ;; *) export PATH="$HOME/.cargo/bin:$PATH" ;; esac
 	info "Running checkhealth.sh --install to install remaining dependencies..."
-	bash "$INSTALL_DIR/checkhealth.sh" --install || {
+	# --install checks first and installs after; transient failures
+	# (network blips, apt locks, aborted downloads) heal on retry. After
+	# the first pass everything installed is skipped, so retries are
+	# cheap verifications. Three attempts, exit code 0 wins.
+	local attempt ok=0
+	for attempt in 1 2 3; do
+		if bash "$INSTALL_DIR/checkhealth.sh" --install; then
+			ok=1
+			break
+		fi
+		if [ "$attempt" -lt 3 ]; then
+			warn "checkhealth attempt $attempt/3 failed — retrying..."
+			sleep 2
+		fi
+	done
+	if [ "$ok" = 1 ]; then
+		ok "Dependency check complete."
+	else
 		warn "Some dependencies could not be installed automatically."
 		warn "Run 'cd $INSTALL_DIR && ./checkhealth.sh' to review remaining items."
-	}
-	ok "Dependency check complete."
+	fi
 }
 
 # ────────────────── Step 6: Symlink config & install TPM + plugins ──────────────────
@@ -625,8 +707,17 @@ main() {
 	# parent shell's environment, so spell out how to pick it up now.
 	local env_file
 	env_file="$(shell_env_files | head -1)"
-	echo -e "  ${YELLOW}New PATH takes effect in NEW shells. To use it in this terminal now:${NC}"
-	echo -e "    ${CYAN}source ${env_file}${NC}    ${YELLOW}# or simply: ${CYAN}exec \$SHELL${NC}"
+	# ACQUIRE_TIOCSTI protocol: only the script that claimed the injection
+	# right acts. When chained, the wrapper holds the right and injects once
+	# at its own end — per-component hints would be redundant there.
+	if [ "$ACQUIRE_TIOCSTI" != "monkey-tmux" ]; then
+		: # wrapper holds the injection right
+	elif inject_tty "source ${env_file}"; then
+		echo -e "  ${GREEN}Injected 'source ${env_file}' into the current terminal.${NC}"
+	else
+		echo -e "  ${YELLOW}New PATH takes effect in NEW shells. To use it in this terminal now:${NC}"
+		echo -e "    ${CYAN}source ${env_file}${NC}    ${YELLOW}# or simply: ${CYAN}exec \$SHELL${NC}"
+	fi
 	echo ""
 }
 
