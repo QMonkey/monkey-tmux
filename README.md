@@ -87,7 +87,7 @@ What the script does, step by step:
 
 ```bash
 git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
-ln -s $(pwd)/.tmux.conf ~/.tmux.conf
+ln -sfn $(pwd)/.tmux.conf ~/.tmux.conf
 ```
 
 Start tmux, then press `prefix + I` to install plugins.
