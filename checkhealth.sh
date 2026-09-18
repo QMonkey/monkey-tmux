@@ -14,6 +14,7 @@ WARN="[${YELLOW}!${NC}]"
 
 ALL_PASSED=true
 INSTALL_MODE=false
+SKIP_CONFIG_CHECKS=false
 
 usage() {
 	cat <<EOF
@@ -23,6 +24,9 @@ Check and optionally install dependencies for monkey-tmux.
 
 OPTIONS
   -i, --install    Install missing dependencies
+  --skip-check-config
+                   Skip config-file checks (install.sh passes this: the
+                   config symlinks are linked after this script runs)
   -h, --help       Show this help
 
 Exit code: 1 if any required dependency is missing, 0 otherwise.
@@ -34,6 +38,7 @@ parse_args() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		-i | --install) INSTALL_MODE=true ;;
+		--skip-check-config) SKIP_CONFIG_CHECKS=true ;;
 		-h | --help) usage ;;
 		*)
 			echo "Unknown option: $1"
@@ -202,11 +207,14 @@ install_with_system_mgr() {
 
 install_pkg() {
 	if ! $INSTALL_MODE; then return 1; fi
-	install_with_system_mgr "$@"
+	local _rc=0
+	install_with_system_mgr "$@" || _rc=1
 	# Freshly installed binaries may be shadowed by bash's per-process
 	# command hash cache (a /mnt shim executed earlier in this same run);
-	# re-scan PATH.
+	# re-scan PATH. Run AFTER capturing _rc — hash -r must not mask the
+	# install status.
 	hash -r
+	return "$_rc"
 }
 
 get_install_hint() {
@@ -379,6 +387,14 @@ check_terminal_caps() {
 }
 
 check_config_files() {
+	# --skip-check-config (passed by install.sh): the config symlinks are
+	# linked AFTER this script runs, so judging them here would fail every
+	# chained run and burn all three retries. Standalone runs (the manual
+	# diagnosis entry point) still get the full check.
+	if $SKIP_CONFIG_CHECKS; then
+		echo -e "  ${WARN} config checks skipped (handled by the installer)"
+		return 0
+	fi
 	echo -e "${BOLD}Config files${NC}"
 	local tmuxconf="${HOME}/.tmux.conf"
 	if [[ -L "$tmuxconf" ]]; then
@@ -393,7 +409,7 @@ check_config_files() {
 	elif [[ -f "$tmuxconf" ]]; then
 		echo -e "  ${WARN} .tmux.conf exists but is not a symlink"
 	else
-		echo -e "  ${FAIL} .tmux.conf not found (run: ln -s /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
+		echo -e "  ${FAIL} .tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
 		ALL_PASSED=false
 	fi
 
@@ -407,6 +423,23 @@ check_config_files() {
 	fi
 
 	echo ""
+}
+
+# The required checks, in ONE place: main runs them up front, and
+# install_missing_required re-runs them after installing — the install
+# changed the world, so the verdict (ALL_PASSED / MISSING_REQUIRED) is
+# always recomputed from here and never carried over stale.
+run_required_checks() {
+	ALL_PASSED=true
+	MISSING_REQUIRED=()
+	print_tmux_version
+	check_required_tools
+	check_fzf
+	check_node
+	check_jq
+	check_python3
+	check_clipboard
+	check_config_files
 }
 
 install_missing_required() {
@@ -434,12 +467,13 @@ install_missing_required() {
 	for b in "${MISSING_REQUIRED[@]}"; do
 		pkgs+=("$(pkg_name "$b")")
 	done
-	if [[ ${#pkgs[@]} -gt 0 ]]; then
-		if install_pkg "${pkgs[@]}"; then
-			echo -e "${GREEN}Done.${NC}"
-		else
-			echo -e "${RED}Failed. Run: $(get_install_hint "${pkgs[*]}")${NC}"
+	if install_pkg "${pkgs[@]}"; then
+		run_required_checks
+		if [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
+			echo -e "${RED}Run: $(get_install_hint "$(for b in "${MISSING_REQUIRED[@]}"; do pkg_name "$b"; done | tr '\n' ' ')")${NC}"
 		fi
+	else
+		echo -e "${RED}Install command failed. Run: $(get_install_hint "${pkgs[*]}")${NC}"
 	fi
 	echo ""
 }
@@ -464,18 +498,11 @@ main() {
 	OS=$(os_detect)
 	MISSING_REQUIRED=()
 	print_header
-	print_tmux_version
 	print_platform
-	check_required_tools
-	check_fzf
-	check_node
-	check_jq
-	check_python3
-	check_clipboard
+	run_required_checks
 	check_tmux_fingers
 	check_optional_tools
 	check_terminal_caps
-	check_config_files
 	install_missing_required
 	print_summary
 }
