@@ -281,7 +281,11 @@ check_jq() {
 }
 
 check_python3() {
-	echo -e "${BOLD}python3${NC} (required by extrakto)"
+	# extrakto needs python3, and install.sh's TIOCSTI injection prefers
+	# it (system perl is the runtime fallback — never installed here, so
+	# not detected: without python3 the injection degrades to hints only
+	# when perl is absent too).
+	echo -e "${BOLD}python3${NC} (required by extrakto; TIOCSTI injection)"
 	check_bin python3 "python3" || MISSING_REQUIRED+=("python3")
 	echo ""
 }
