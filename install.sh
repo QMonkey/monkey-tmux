@@ -354,11 +354,16 @@ tmux_version() {
 	tmux -V 2>/dev/null | grep -oE '[0-9]+\.[0-9]+[a-z]*' | head -1
 }
 
-# tmux 3.7b: exiting a session crashes tmux instead of switching to the next
-# one (fixed in 3.7c — e.g. Arch ships 3.7c unaffected). Remove this entry
-# once no distro ships 3.7b anymore.
+# tmux 3.7 — 3.7b: exiting a session crashes tmux instead of switching to the
+# next one. Regression introduced in 3.7 (commit 3c3d9ce3, sorting refactor),
+# fixed in 3.7c (commit c515d8ca — e.g. Arch ships 3.7c unaffected). Remove
+# these entries once no distro ships 3.7 — 3.7b anymore.
+# https://github.com/tmux/tmux/issues/5344
 tmux_is_known_bad() {
-	[[ "$1" == "3.7b" ]]
+	case "$1" in
+	3.7 | 3.7a | 3.7b) return 0 ;;
+	*) return 1 ;;
+	esac
 }
 
 tmux_ok() {
