@@ -374,19 +374,21 @@ build_tmux_from_source() {
 	info "Building tmux from source (master)..."
 	case "$OS" in
 	debian)
-		sudo_cmd apt-get install -y build-essential git curl libevent-dev ncurses-dev bison pkg-config
+		# autoconf/automake: the master branch has no generated ./configure —
+		# autogen.sh (which needs them) must run before configure.
+		sudo_cmd apt-get install -y build-essential git curl libevent-dev ncurses-dev bison pkg-config autoconf automake
 		;;
 	arch)
 		sudo_cmd pacman -S --needed --noconfirm base-devel libevent ncurses bison pkgconf
 		;;
 	opensuse)
-		sudo_cmd zypper --non-interactive install -y gcc make git libevent-devel ncurses-devel bison pkg-config
+		sudo_cmd zypper --non-interactive install -y gcc make git libevent-devel ncurses-devel bison pkg-config autoconf automake
 		;;
 	centos)
-		sudo_cmd dnf install -y gcc make git curl libevent-devel ncurses-devel bison pkgconfig
+		sudo_cmd dnf install -y gcc make git curl libevent-devel ncurses-devel bison pkgconfig autoconf automake
 		;;
 	macos)
-		brew install libevent ncurses pkg-config
+		brew install libevent ncurses pkg-config autoconf automake
 		;;
 	esac
 	if [ -d "$TMUX_SRC_DIR/.git" ]; then
@@ -398,6 +400,13 @@ build_tmux_from_source() {
 
 	pushd "$TMUX_SRC_DIR" >/dev/null
 	info "Compiling tmux (master) with ${JOBS} jobs..."
+	# The master branch does not ship a generated ./configure — autogen.sh
+	# produces it (needs autoconf + automake, installed above).
+	if [ ! -f ./configure ]; then
+		sh ./autogen.sh 2>&1 | tee /tmp/tmux-autogen.log || {
+			fail "tmux autogen.sh failed. Check /tmp/tmux-autogen.log"
+		}
+	fi
 	./configure 2>&1 | tee /tmp/tmux-configure.log || {
 		fail "tmux configure failed. Check /tmp/tmux-configure.log"
 	}
