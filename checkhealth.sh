@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly CYAN='\033[0;36m'
+readonly BOLD='\033[1m'
+readonly NC='\033[0m'
 
-PASS="[${GREEN}✓${NC}]"
-FAIL="[${RED}✗${NC}]"
-WARN="[${YELLOW}!${NC}]"
+# List-item helpers: 2-space indent, brackets outside the color span,
+# OK centered as [ OK ]. fail() does not abort — checkhealth must keep
+# going and summarize (exit status comes from REQUIRED_FAILURES).
+info() { echo -e "  [${CYAN}INFO${NC}] $*"; }
+ok() { echo -e "  [${GREEN} OK ${NC}] $*"; }
+warn() { echo -e "  [${YELLOW}WARN${NC}] $*"; }
+fail() {
+	echo -e "  [${RED}FAIL${NC}] $*"
+}
 
-ALL_PASSED=true
+REQUIRED_FAILURES=0
 INSTALL_MODE=false
 SKIP_CONFIG_CHECKS=false
 
@@ -75,11 +81,11 @@ native_sudo() {
 
 check_bin() {
 	if have_native_cmd "$1"; then
-		echo -e "  ${PASS} ${2:-$1}"
+		ok "${2:-$1}"
 		return 0
 	else
-		echo -e "  ${FAIL} ${2:-$1}"
-		ALL_PASSED=false
+		fail "${2:-$1}"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		return 1
 	fi
 }
@@ -88,11 +94,11 @@ check_cmd() {
 	local desc="$1"
 	shift
 	if "$@" &>/dev/null; then
-		echo -e "  ${PASS} ${desc}"
+		ok "${desc}"
 		return 0
 	else
-		echo -e "  ${FAIL} ${desc}"
-		ALL_PASSED=false
+		fail "${desc}"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		return 1
 	fi
 }
@@ -100,8 +106,8 @@ check_cmd() {
 check_version() {
 	local bin="$1" min="$2" desc="$3"
 	if ! have_native_cmd "$bin"; then
-		echo -e "  ${FAIL} ${desc} (${bin} not found)"
-		ALL_PASSED=false
+		fail "${desc} (${bin} not found)"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		return 1
 	fi
 	local ver="" flag
@@ -110,16 +116,16 @@ check_version() {
 		[[ -n "$ver" ]] && break
 	done
 	if [[ -z "$ver" ]]; then
-		echo -e "  ${FAIL} ${desc} (could not detect version)"
-		ALL_PASSED=false
+		fail "${desc} (could not detect version)"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		return 1
 	fi
 	if printf '%s\n%s\n' "$min" "$ver" | sort -V -C; then
-		echo -e "  ${PASS} ${desc} ${ver}"
+		ok "${desc} ${ver}"
 		return 0
 	else
-		echo -e "  ${FAIL} ${desc} ${ver} (need >= ${min})"
-		ALL_PASSED=false
+		fail "${desc} ${ver} (need >= ${min})"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		return 1
 	fi
 }
@@ -188,10 +194,12 @@ refresh_pkg() {
 	return 0
 }
 
-# System package manager install. Returns non-zero when the OS is unknown
-# or the manager fails, so callers can fall back to other sources.
-install_with_system_mgr() {
+# System package install. Gated on --install; recycles bash's command hash
+# so a freshly installed binary resolves.
+install_pkg() {
+	if ! $INSTALL_MODE; then return 1; fi
 	refresh_pkg
+	local rc=0
 	case "$OS" in
 	debian) sudo_cmd apt-get install -y "$@" ;;
 	arch) sudo_cmd pacman -S --noconfirm "$@" ;;
@@ -201,20 +209,14 @@ install_with_system_mgr() {
 		sudo_cmd dnf install -y "$@"
 		;;
 	macos) brew install "$@" ;;
-	*) return 1 ;;
-	esac
-}
-
-install_pkg() {
-	if ! $INSTALL_MODE; then return 1; fi
-	local _rc=0
-	install_with_system_mgr "$@" || _rc=1
+	*) rc=1 ;;
+	esac || rc=$?
 	# Freshly installed binaries may be shadowed by bash's per-process
 	# command hash cache (a /mnt shim executed earlier in this same run);
-	# re-scan PATH. Run AFTER capturing _rc — hash -r must not mask the
+	# re-scan PATH. Run AFTER capturing rc — hash -r must not mask the
 	# install status.
 	hash -r
-	return "$_rc"
+	return "$rc"
 }
 
 get_install_hint() {
@@ -250,7 +252,7 @@ print_platform() {
 	opensuse) echo -e "  Package manager: ${CYAN}zypper${NC}" ;;
 	centos) echo -e "  Package manager: ${CYAN}dnf${NC}" ;;
 	macos) echo -e "  Package manager: ${CYAN}homebrew${NC}" ;;
-	*) echo -e "  ${WARN} Unsupported OS — install dependencies manually" ;;
+	*) warn "Unsupported OS — install dependencies manually" ;;
 	esac
 	echo ""
 }
@@ -306,17 +308,17 @@ check_clipboard() {
 		# NOTE: clip.exe is intentionally a WINDOWS binary reached through WSL
 		# interop — have_native_cmd must NOT be applied here.
 		if command -v clip.exe &>/dev/null; then
-			echo -e "  ${PASS} clip.exe (WSL)"
+			ok "clip.exe (WSL)"
 			if [[ -r /proc/sys/fs/binfmt_misc/WSLInterop ]] &&
 				[[ "$(head -1 /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null)" == "enabled" ]]; then
-				echo -e "  ${PASS} WSL interop (binfmt WSLInterop enabled)"
+				ok "WSL interop (binfmt WSLInterop enabled)"
 			else
-				echo -e "  ${WARN} WSL interop broken — .exe calls (yank/extrakto/fzf-url) will fail"
+				warn "WSL interop broken — .exe calls (yank/extrakto/fzf-url) will fail"
 				echo -e "         See README Troubleshooting: re-register /proc/sys/fs/binfmt_misc/WSLInterop"
 			fi
 		else
-			echo -e "  ${FAIL} clip.exe (WSL)"
-			ALL_PASSED=false
+			fail "clip.exe (WSL)"
+			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 			MISSING_REQUIRED+=("clip.exe")
 		fi
 	else
@@ -324,7 +326,7 @@ check_clipboard() {
 		# on Wayland (its helpers check wl-copy BEFORE xsel); under XWayland
 		# xclip works too, so any one of the three suffices. Probes use
 		# have_native_cmd so a missing first choice cannot poison
-		# ALL_PASSED when a later alternative exists.
+		# REQUIRED_FAILURES when a later alternative exists.
 		local tool="" t
 		for t in wl-copy xclip xsel; do
 			if have_native_cmd "$t"; then
@@ -333,13 +335,13 @@ check_clipboard() {
 			fi
 		done
 		if [[ -n "$tool" ]]; then
-			echo -e "  ${PASS} ${tool} (clipboard)"
+			ok "${tool} (clipboard)"
 		else
 			local hint="xclip"
 			[[ -n "${WAYLAND_DISPLAY:-}" ]] && hint="wl-clipboard"
-			echo -e "  ${FAIL} xclip / xsel / wl-copy (Wayland: install wl-clipboard)"
+			fail "xclip / xsel / wl-copy (Wayland: install wl-clipboard)"
 			MISSING_REQUIRED+=("$hint")
-			ALL_PASSED=false
+			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		fi
 	fi
 	echo ""
@@ -359,13 +361,13 @@ check_tmux_fingers() {
 		fi
 	done
 	if [[ -n "$fingers_bin" ]]; then
-		echo -e "  ${PASS} tmux-fingers binary found"
+		ok "tmux-fingers binary found"
 	else
 		if [[ -d "$fingers_dir" ]]; then
-			echo -e "  ${WARN} tmux-fingers plugin installed but binary not built"
+			warn "tmux-fingers plugin installed but binary not built"
 			echo -e "         Run ${CYAN}prefix+I${NC} in tmux and follow the wizard"
 		else
-			echo -e "  ${WARN} tmux-fingers plugin not yet installed"
+			warn "tmux-fingers plugin not yet installed"
 		fi
 	fi
 	echo ""
@@ -379,9 +381,9 @@ check_optional_tools() {
 check_terminal_caps() {
 	echo -e "${BOLD}Terminal capabilities${NC}"
 	if [[ -n "${COLORTERM:-}" ]] || [[ "$TERM" =~ (256color|tmux|screen|alacritty|kitty|wezterm|xterm-kitty) ]]; then
-		echo -e "  ${PASS} TERM=${TERM} (true color capable)"
+		ok "TERM=${TERM} (true color capable)"
 	else
-		echo -e "  ${WARN} TERM=${TERM} — true color may not work"
+		warn "TERM=${TERM} — true color may not work"
 	fi
 	echo ""
 }
@@ -392,7 +394,7 @@ check_config_files() {
 	# chained run and burn all three retries. Standalone runs (the manual
 	# diagnosis entry point) still get the full check.
 	if $SKIP_CONFIG_CHECKS; then
-		echo -e "  ${WARN} config checks skipped (handled by the installer)"
+		warn "config checks skipped (handled by the installer)"
 		return 0
 	fi
 	echo -e "${BOLD}Config files${NC}"
@@ -401,25 +403,25 @@ check_config_files() {
 		local target
 		target=$(readlink -f "$tmuxconf" 2>/dev/null || readlink "$tmuxconf")
 		if [[ -f "$target" ]]; then
-			echo -e "  ${PASS} .tmux.conf → ${target}"
+			ok ".tmux.conf → ${target}"
 		else
-			echo -e "  ${FAIL} .tmux.conf symlink broken → ${target}"
-			ALL_PASSED=false
+			fail ".tmux.conf symlink broken → ${target}"
+			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 		fi
 	elif [[ -f "$tmuxconf" ]]; then
-		echo -e "  ${WARN} .tmux.conf exists but is not a symlink"
+		warn ".tmux.conf exists but is not a symlink"
 	else
-		echo -e "  ${FAIL} .tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
-		ALL_PASSED=false
+		fail ".tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
+		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
 	fi
 
 	local tpm_dir="${HOME}/.tmux/plugins/tpm"
 	if [[ -x "$tpm_dir/tpm" || -f "$tpm_dir/tpm" ]]; then
-		echo -e "  ${PASS} TPM (tmux plugin manager) installed"
+		ok "TPM (tmux plugin manager) installed"
 	elif [[ -d "$tpm_dir" ]]; then
-		echo -e "  ${WARN} TPM dir exists but may be incomplete"
+		warn "TPM dir exists but may be incomplete"
 	else
-		echo -e "  ${WARN} TPM not installed (auto-installed on first tmux start)"
+		warn "TPM not installed (auto-installed on first tmux start)"
 	fi
 
 	echo ""
@@ -427,10 +429,10 @@ check_config_files() {
 
 # The required checks, in ONE place: main runs them up front, and
 # install_missing_required re-runs them after installing — the install
-# changed the world, so the verdict (ALL_PASSED / MISSING_REQUIRED) is
+# changed the world, so the verdict (REQUIRED_FAILURES / MISSING_REQUIRED) is
 # always recomputed from here and never carried over stale.
 run_required_checks() {
-	ALL_PASSED=true
+	REQUIRED_FAILURES=0
 	MISSING_REQUIRED=()
 	print_tmux_version
 	check_required_tools
@@ -479,7 +481,7 @@ install_missing_required() {
 }
 
 print_summary() {
-	if $ALL_PASSED; then
+	if [ "$REQUIRED_FAILURES" -eq 0 ]; then
 		echo -e "${GREEN}${BOLD}All required dependencies satisfied.${NC}"
 		exit 0
 	else
@@ -496,6 +498,7 @@ print_summary() {
 main() {
 	parse_args "$@"
 	OS=$(os_detect)
+	readonly OS
 	MISSING_REQUIRED=()
 	print_header
 	print_platform
