@@ -1,448 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly CYAN='\033[0;36m'
-readonly BOLD='\033[1m'
-readonly NC='\033[0m'
+# ──────────────────────────────────────────────────────────────
+# monkey-tmux dependency check
+#
+# The check framework lives in scripts/ (a `git subtree` of
+# github.com/QMonkey/monkey-scripts) — this file only declares WHAT to check.
+# ──────────────────────────────────────────────────────────────
 
-# List-item helpers: 2-space indent, brackets outside the color span,
-# OK centered as [ OK ]. fail() does not abort — checkhealth must keep
-# going and summarize (exit status comes from REQUIRED_FAILURES).
-info() { echo -e "  [${CYAN}INFO${NC}] $*"; }
-ok() { echo -e "  [${GREEN} OK ${NC}] $*"; }
-warn() { echo -e "  [${YELLOW}WARN${NC}] $*"; }
-fail() {
-	echo -e "  [${RED}FAIL${NC}] $*"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/scripts/checkhealth.sh" || {
+	echo "monkey-scripts not found — update this checkout (git pull / re-clone)," >&2
+	echo "or run install.sh, which bootstraps monkey-scripts itself." >&2
+	exit 1
 }
 
-REQUIRED_FAILURES=0
-INSTALL_MODE=false
-SKIP_CONFIG_CHECKS=false
+# ──────────────────────── identity ────────────────────────
+PROJECT=monkey-tmux
 
-usage() {
-	cat <<EOF
-Usage: $0 [OPTIONS]
+# ──────────────────────── version gate ────────────────────────
+MAIN_VERSION="tmux|ver:3.2|tmux|pkg"
+MAIN_VERSION_TITLE="tmux"
 
-Check and optionally install dependencies for monkey-tmux.
+# ──────────────────────── required ────────────────────────
+# Every plugin dependency gets its own bold section, as upstream always had:
+#   @header|Title   section title (${NC} ends the bold span early)
+#   @clipboard      tmux-yank's clipboard probe (CHECK_CLIPBOARD=required)
+#   @config         the "Config files" section
+REQUIRED_CHECKS=(
+	"@header|Required tools"
+	"git|bin|git"
+	"which|bin|which (needed by fzf-tmux in tmux run-shell)"
+	"@header|fzf${NC} (required by tmux-fzf, tmux-scout, extrakto, tmux-fzf-url)"
+	"fzf|ver:0.51|fzf (need >= 0.51 for tmux-scout)|pkg"
+	"@header|Node.js${NC} (required by tmux-scout)"
+	"node|ver:16|node (need >= 16 for tmux-scout)|pkg"
+	"@header|jq${NC} (required by tmux-assistant-resurrect)"
+	"jq|bin|jq"
+	"@header|python3${NC} (required by extrakto; TIOCSTI injection)"
+	"python3|bin|python3"
+	"@header|Clipboard${NC} (required by tmux-yank)"
+	"@clipboard"
+	"@config"
+)
 
-OPTIONS
-  -i, --install    Install missing dependencies
-  --skip-check-config
-                   Skip config-file checks (install.sh passes this: the
-                   config symlinks are linked after this script runs)
-  -h, --help       Show this help
+# ──────────────────────── optional ────────────────────────
+# Reported only: nothing installs it (the distro package may not exist on
+# older releases), and a missing one must not fail the check.
+OPTIONAL_SECTION_TITLE="Optional tools"
+OPTIONAL_TRAILING_BLANK=0 # upstream prints no spacer before Terminal capabilities
+OPTIONAL_CHECKS=(
+	"rg|bin|ripgrep (recommended for faster fzf search)"
+)
 
-Exit code: 1 if any required dependency is missing, 0 otherwise.
-EOF
-	exit 0
-}
-
-parse_args() {
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-		-i | --install) INSTALL_MODE=true ;;
-		--skip-check-config) SKIP_CONFIG_CHECKS=true ;;
-		-h | --help) usage ;;
-		*)
-			echo "Unknown option: $1"
-			usage
-			;;
-		esac
-		shift
-	done
-}
-
-# ──────────────────────────── helpers ────────────────────────────
-
-# WSL interop appends the WINDOWS PATH to ours, so tools installed on the
-# Windows side (node, python, git, ...) appear as /mnt/c/... shims. They are
-# NOT Linux binaries: `sudo` cannot even see them (secure_path drops /mnt/*),
-# and a global `npm install -g` through the shim would land on the WINDOWS
-# side, invisible to WSL tmux. Treat /mnt/* resolutions as "not installed" so
-# the real Linux packages get installed instead.
-have_native_cmd() {
-	command -v "$1" &>/dev/null || return 1
-	case "$(command -v "$1")" in
-	/mnt/*) return 1 ;; # WSL Windows-interop shim
-	esac
-	return 0
-}
-
-# Absolute path to a LINUX sudo, or non-zero.
-native_sudo() {
-	local p
-	have_native_cmd sudo || return 1
-	p=$(command -v sudo)
-	printf '%s' "$p"
-}
-
-check_bin() {
-	if have_native_cmd "$1"; then
-		ok "${2:-$1}"
-		return 0
-	else
-		fail "${2:-$1}"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		return 1
-	fi
-}
-
-check_cmd() {
-	local desc="$1"
-	shift
-	if "$@" &>/dev/null; then
-		ok "${desc}"
-		return 0
-	else
-		fail "${desc}"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		return 1
-	fi
-}
-
-check_version() {
-	local bin="$1" min="$2" desc="$3"
-	if ! have_native_cmd "$bin"; then
-		fail "${desc} (${bin} not found)"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		return 1
-	fi
-	local ver="" flag
-	for flag in -V --version -v; do
-		ver=$("$bin" "$flag" 2>/dev/null | grep -oP '\d+\.\d+' | head -1)
-		[[ -n "$ver" ]] && break
-	done
-	if [[ -z "$ver" ]]; then
-		fail "${desc} (could not detect version)"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		return 1
-	fi
-	if printf '%s\n%s\n' "$min" "$ver" | sort -V -C; then
-		ok "${desc} ${ver}"
-		return 0
-	else
-		fail "${desc} ${ver} (need >= ${min})"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		return 1
-	fi
-}
-
-os_detect() {
-	case "$(uname -s)" in
-	Linux)
-		if [ -f /etc/os-release ]; then
-			# shellcheck disable=SC1091
-			. /etc/os-release
-			case "$ID" in
-			ubuntu | debian | linuxmint | pop | elementary | zorin) echo "debian" ;;
-			arch | manjaro | endeavouros) echo "arch" ;;
-			opensuse | opensuse-leap | opensuse-tumbleweed | opensuse-microos | suse | sles) echo "opensuse" ;;
-			centos | rhel | fedora | rocky | almalinux | ol) echo "centos" ;;
-			*) echo "linux-unknown" ;;
-			esac
-		else
-			echo "linux-unknown"
-		fi
-		;;
-	Darwin) echo "macos" ;;
-	*) echo "unknown" ;;
-	esac
-}
-
-sudo_cmd() {
-	# Lazy re-auth: Homebrew resets the sudo timestamp on EVERY invocation
-	# (brew.sh runs `sudo --reset-timestamp` at startup), so a ticket that
-	# was valid a minute ago can be dead here. Re-authenticate proactively
-	# with an explanatory prompt instead of letting the command fail or
-	# spring a context-free password prompt. `-n true` never prompts; the
-	# interactive `-v` only runs when the ticket is actually gone.
-	local sudo_bin
-	sudo_bin=$(native_sudo) || {
-		"$@"
-		return
-	}
-	if ! "$sudo_bin" -n true 2>/dev/null; then
-		"$sudo_bin" -v -p "[monkey-tmux] sudo credentials needed to continue — enter your password: " || return 1
-	fi
-	"$sudo_bin" "$@"
-}
-
-# ────────────────── package index refresh ──────────────────
-# Refresh the package index before installing: a stale or missing index is
-# the usual cause of "Unable to locate package" on freshly provisioned
-# machines. Retried once for transient network failures; a failed refresh
-# is never fatal — the install step still runs. Guarded to at most one
-# refresh per run — call freely before every install.
-PKG_DB_REFRESHED=0
-refresh_pkg() {
-	[ "$PKG_DB_REFRESHED" -eq 1 ] && return 0
-	PKG_DB_REFRESHED=1
-	local attempt
-	for attempt in 1 2; do
-		case "$OS" in
-		debian) sudo_cmd apt-get update ;;
-		arch) sudo_cmd pacman -Sy ;;
-		opensuse) sudo_cmd zypper --non-interactive refresh ;;
-		centos) sudo_cmd dnf makecache -q ;;
-		macos | *) return 0 ;;
-		esac && return 0
-		[ "$attempt" -lt 2 ] && sleep 2
-	done
-	return 0
-}
-
-# System package install. Gated on --install; recycles bash's command hash
-# so a freshly installed binary resolves.
-install_pkg() {
-	if ! $INSTALL_MODE; then return 1; fi
-	refresh_pkg
-	local rc=0
-	case "$OS" in
-	debian) sudo_cmd apt-get install -y "$@" ;;
-	arch) sudo_cmd pacman -S --noconfirm "$@" ;;
-	opensuse) sudo_cmd zypper --non-interactive install -y "$@" ;;
-	centos)
-		sudo_cmd dnf install -y epel-release || true
-		sudo_cmd dnf install -y "$@"
-		;;
-	macos) brew install "$@" ;;
-	*) rc=1 ;;
-	esac || rc=$?
-	# Freshly installed binaries may be shadowed by bash's per-process
-	# command hash cache (a /mnt shim executed earlier in this same run);
-	# re-scan PATH. Run AFTER capturing rc — hash -r must not mask the
-	# install status.
-	hash -r
-	return "$rc"
-}
-
-get_install_hint() {
-	case "$OS" in
-	debian) echo "sudo apt-get install ${*}" ;;
-	arch) echo "sudo pacman -S ${*}" ;;
-	opensuse) echo "sudo zypper install ${*}" ;;
-	centos) echo "sudo dnf install ${*}" ;;
-	macos) echo "brew install ${*}" ;;
-	*) echo "install ${*} manually" ;;
-	esac
-}
-
-# ──────────────────── phases ────────────────────
-
-print_header() {
-	echo -e "${BOLD}monkey-tmux dependency check${NC}"
-	echo ""
-}
-
-print_tmux_version() {
-	echo -e "${BOLD}tmux${NC}"
-	check_version tmux 3.2 "tmux"
-	echo ""
-}
-
-print_platform() {
-	echo -e "${BOLD}Platform${NC}"
-	echo -e "  OS: ${CYAN}$(uname -s)${NC}"
-	case "$OS" in
-	debian) echo -e "  Package manager: ${CYAN}apt${NC}" ;;
-	arch) echo -e "  Package manager: ${CYAN}pacman${NC}" ;;
-	opensuse) echo -e "  Package manager: ${CYAN}zypper${NC}" ;;
-	centos) echo -e "  Package manager: ${CYAN}dnf${NC}" ;;
-	macos) echo -e "  Package manager: ${CYAN}homebrew${NC}" ;;
-	*) warn "Unsupported OS — install dependencies manually" ;;
-	esac
-	echo ""
-}
-
-check_required_tools() {
-	echo -e "${BOLD}Required tools${NC}"
-	check_bin git "git" || MISSING_REQUIRED+=("git")
-	check_bin which "which (needed by fzf-tmux in tmux run-shell)" || MISSING_REQUIRED+=("which")
-	echo ""
-}
-
-check_fzf() {
-	echo -e "${BOLD}fzf${NC} (required by tmux-fzf, tmux-scout, extrakto, tmux-fzf-url)"
-	if check_version fzf 0.51 "fzf (need >= 0.51 for tmux-scout)"; then
-		:
-	else
-		MISSING_REQUIRED+=("fzf")
-	fi
-	echo ""
-}
-
-check_node() {
-	echo -e "${BOLD}Node.js${NC} (required by tmux-scout)"
-	if check_version node 16 "node (need >= 16 for tmux-scout)"; then
-		:
-	else
-		MISSING_REQUIRED+=("node")
-	fi
-	echo ""
-}
-
-check_jq() {
-	echo -e "${BOLD}jq${NC} (required by tmux-assistant-resurrect)"
-	check_bin jq "jq" || MISSING_REQUIRED+=("jq")
-	echo ""
-}
-
-check_python3() {
-	# extrakto needs python3, and install.sh's TIOCSTI injection prefers
-	# it (system perl is the runtime fallback — never installed here, so
-	# not detected: without python3 the injection degrades to hints only
-	# when perl is absent too).
-	echo -e "${BOLD}python3${NC} (required by extrakto; TIOCSTI injection)"
-	check_bin python3 "python3" || MISSING_REQUIRED+=("python3")
-	echo ""
-}
-
-check_clipboard() {
-	echo -e "${BOLD}Clipboard${NC} (required by tmux-yank)"
-	if [[ "$OS" == "macos" ]]; then
-		check_bin pbcopy "pbcopy (macOS built-in)" || MISSING_REQUIRED+=("pbcopy")
-	elif grep -qi microsoft /proc/version 2>/dev/null; then
-		# NOTE: clip.exe is intentionally a WINDOWS binary reached through WSL
-		# interop — have_native_cmd must NOT be applied here.
-		if command -v clip.exe &>/dev/null; then
-			ok "clip.exe (WSL)"
-			if [[ -r /proc/sys/fs/binfmt_misc/WSLInterop ]] &&
-				[[ "$(head -1 /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null)" == "enabled" ]]; then
-				ok "WSL interop (binfmt WSLInterop enabled)"
-			else
-				warn "WSL interop broken — .exe calls (yank/extrakto/fzf-url) will fail"
-				echo -e "         See README Troubleshooting: re-register /proc/sys/fs/binfmt_misc/WSLInterop"
-			fi
-		else
-			fail "clip.exe (WSL)"
-			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-			MISSING_REQUIRED+=("clip.exe")
-		fi
-	else
-		# X11: xclip/xsel; Wayland: wl-clipboard. tmux-yank prefers wl-copy
-		# on Wayland (its helpers check wl-copy BEFORE xsel); under XWayland
-		# xclip works too, so any one of the three suffices. Probes use
-		# have_native_cmd so a missing first choice cannot poison
-		# REQUIRED_FAILURES when a later alternative exists.
-		local tool="" t
-		for t in wl-copy xclip xsel; do
-			if have_native_cmd "$t"; then
-				tool="$t"
-				break
-			fi
-		done
-		if [[ -n "$tool" ]]; then
-			ok "${tool} (clipboard)"
-		else
-			local hint="xclip"
-			[[ -n "${WAYLAND_DISPLAY:-}" ]] && hint="wl-clipboard"
-			fail "xclip / xsel / wl-copy (Wayland: install wl-clipboard)"
-			MISSING_REQUIRED+=("$hint")
-			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		fi
-	fi
-	echo ""
-}
-
-check_tmux_fingers() {
-	echo -e "${BOLD}tmux-fingers${NC} (requires binary, installed via wizard on first run)"
-	local fingers_dir="${HOME}/.tmux/plugins/tmux-fingers" candidate fingers_bin=""
-	for candidate in \
-		"$fingers_dir/bin/tmux-fingers" \
-		"$fingers_dir/scripts/tmux-fingers.sh" \
-		"$fingers_dir/target/release/tmux-fingers" \
-		/usr/local/bin/tmux-fingers; do
-		if [[ -x "$candidate" ]]; then
-			fingers_bin="$candidate"
-			break
-		fi
-	done
-	if [[ -n "$fingers_bin" ]]; then
-		ok "tmux-fingers binary found"
-	else
-		if [[ -d "$fingers_dir" ]]; then
-			warn "tmux-fingers plugin installed but binary not built"
-			echo -e "         Run ${CYAN}prefix+I${NC} in tmux and follow the wizard"
-		else
-			warn "tmux-fingers plugin not yet installed"
-		fi
-	fi
-	echo ""
-}
-
-check_optional_tools() {
-	echo -e "${BOLD}Optional tools${NC}"
-	if check_bin rg "ripgrep (recommended for faster fzf search)" 2>/dev/null; then :; fi
-}
-
-check_terminal_caps() {
-	echo -e "${BOLD}Terminal capabilities${NC}"
-	if [[ -n "${COLORTERM:-}" ]] || [[ "$TERM" =~ (256color|tmux|screen|alacritty|kitty|wezterm|xterm-kitty) ]]; then
-		ok "TERM=${TERM} (true color capable)"
-	else
-		warn "TERM=${TERM} — true color may not work"
-	fi
-	echo ""
-}
-
-check_config_files() {
-	# --skip-check-config (passed by install.sh): the config symlinks are
-	# linked AFTER this script runs, so judging them here would fail every
-	# chained run and burn all three retries. Standalone runs (the manual
-	# diagnosis entry point) still get the full check.
-	if $SKIP_CONFIG_CHECKS; then
-		warn "config checks skipped (handled by the installer)"
-		return 0
-	fi
-	echo -e "${BOLD}Config files${NC}"
-	local tmuxconf="${HOME}/.tmux.conf"
-	if [[ -L "$tmuxconf" ]]; then
-		local target
-		target=$(readlink -f "$tmuxconf" 2>/dev/null || readlink "$tmuxconf")
-		if [[ -f "$target" ]]; then
-			ok ".tmux.conf → ${target}"
-		else
-			fail ".tmux.conf symlink broken → ${target}"
-			REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-		fi
-	elif [[ -f "$tmuxconf" ]]; then
-		warn ".tmux.conf exists but is not a symlink"
-	else
-		fail ".tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
-		REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-	fi
-
-	local tpm_dir="${HOME}/.tmux/plugins/tpm"
-	if [[ -x "$tpm_dir/tpm" || -f "$tpm_dir/tpm" ]]; then
-		ok "TPM (tmux plugin manager) installed"
-	elif [[ -d "$tpm_dir" ]]; then
-		warn "TPM dir exists but may be incomplete"
-	else
-		warn "TPM not installed (auto-installed on first tmux start)"
-	fi
-
-	echo ""
-}
-
-# The required checks, in ONE place: main runs them up front, and
-# install_missing_required re-runs them after installing — the install
-# changed the world, so the verdict (REQUIRED_FAILURES / MISSING_REQUIRED) is
-# always recomputed from here and never carried over stale.
-run_required_checks() {
-	REQUIRED_FAILURES=0
-	MISSING_REQUIRED=()
-	print_tmux_version
-	check_required_tools
-	check_fzf
-	check_node
-	check_jq
-	check_python3
-	check_clipboard
-	check_config_files
-}
+# ──────────────────────── required install ────────────────────────
+# Verbatim upstream: tmux runs this AFTER Terminal capabilities
+# (INSTALL_REQUIRED_PHASE=late), installs the package-name mapping in
+# one batch and re-probes via run_required_checks.
 
 install_missing_required() {
 	if ! $INSTALL_MODE || [[ ${#MISSING_REQUIRED[@]} -eq 0 ]]; then
@@ -480,34 +93,30 @@ install_missing_required() {
 	echo ""
 }
 
-print_summary() {
-	if [ "$REQUIRED_FAILURES" -eq 0 ]; then
-		echo -e "${GREEN}${BOLD}All required dependencies satisfied.${NC}"
-		exit 0
-	else
-		echo -e "${RED}${BOLD}Some required dependencies are missing.${NC}"
-		if ! $INSTALL_MODE; then
-			echo -e "Run ${CYAN}$0 --install${NC} to install them automatically."
-		fi
-		exit 1
-	fi
-}
+# ──────────────────────── config ────────────────────────
+CONFIG_PHASE=required
+INSTALL_REQUIRED_PHASE=late
+# hint reproduces upstream's verbatim missing-fail text (literal
+# /path/to/monkey-tmux placeholder instead of $(pwd)).
+CONFIG_LINKS=(
+	"$(pwd)/.tmux.conf|$HOME/.tmux.conf|.tmux.conf||.tmux.conf|.tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
+)
+# type|params|ok|incomplete|missing
+CONFIG_HINTS=(
+	"path|$HOME/.tmux/plugins/tpm/tpm|TPM (tmux plugin manager) installed|TPM dir exists but may be incomplete|TPM not installed (auto-installed on first tmux start)"
+)
 
-# ──────────────────── main ────────────────────
+# ──────────────────────── advisory ────────────────────────
+# tmux-fingers ships no prebuilt binary on every platform: TPM clones it and
+# the first run walks the user through the build (prefix+I).
+ADVISORY_PHASE=early
+# title|note|type|params|ok|incomplete|missing
+ADVISORY_SECTIONS=(
+	"tmux-fingers${NC} (requires binary, installed via wizard on first run)||exec|$HOME/.tmux/plugins/tmux-fingers/bin/tmux-fingers $HOME/.tmux/plugins/tmux-fingers/scripts/tmux-fingers.sh $HOME/.tmux/plugins/tmux-fingers/target/release/tmux-fingers /usr/local/bin/tmux-fingers|tmux-fingers binary found|tmux-fingers plugin installed but binary not built\n         Run \033[0;36mprefix+I\033[0m in tmux and follow the wizard|tmux-fingers plugin not yet installed"
+)
 
-main() {
-	parse_args "$@"
-	OS=$(os_detect)
-	readonly OS
-	MISSING_REQUIRED=()
-	print_header
-	print_platform
-	run_required_checks
-	check_tmux_fingers
-	check_optional_tools
-	check_terminal_caps
-	install_missing_required
-	print_summary
-}
+# ──────────────────────── terminal ────────────────────────
+CHECK_TERMINAL_CAPS=1
+CHECK_CLIPBOARD=required
 
-main "$@"
+checkhealth_main "$@"
