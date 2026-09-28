@@ -68,6 +68,8 @@ Install tmux (system package when possible, built from source only if the distro
 curl -fsSL https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/install.sh | bash
 ```
 
+> The one-liner needs `git` besides `curl` itself: the installer clones this repository into `~/Documents/monkey-tmux` before it can install anything. If `git` is missing, the script stops with an error — install it with your system's package manager and re-run the same command.
+
 What the script does, step by step:
 
 1. Install tmux — the system package is preferred (tmux >= 3.2 is all the config needs); if the distro version is too old or a known-bad release (3.7b crashes on session exit), tmux master is built from source into `/usr/local`
