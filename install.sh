@@ -160,7 +160,7 @@ build_tmux_from_source() {
 		sudo_cmd dnf install -y gcc make git curl libevent-devel ncurses-devel bison pkgconfig autoconf automake
 		;;
 	macos)
-		brew install libevent ncurses pkg-config autoconf automake
+		retry -t 1800 -s "brew install build deps" brew install libevent ncurses pkg-config autoconf automake
 		;;
 	esac
 	if [ -d "$TMUX_SRC_DIR/.git" ]; then
@@ -172,7 +172,7 @@ build_tmux_from_source() {
 		# every later attempt (and re-run) fail with "already exists" — clean
 		# it up before giving up, but only when git created it (.git inside)
 		# or it is empty, never when it holds pre-existing user data.
-		if ! retry -s "git clone tmux" git clone https://github.com/tmux/tmux.git "$TMUX_SRC_DIR"; then
+		if ! retry -t 1800 -s "git clone tmux" git clone https://github.com/tmux/tmux.git "$TMUX_SRC_DIR"; then
 			if [ -d "$TMUX_SRC_DIR" ] && { [ -z "$(ls -A "$TMUX_SRC_DIR")" ] || [ -d "$TMUX_SRC_DIR/.git" ]; }; then
 				rm -rf "$TMUX_SRC_DIR"
 			fi
@@ -248,7 +248,7 @@ install_fzf() {
 		return 0
 	fi
 	info "Installing fzf via Homebrew (distro versions lag behind)..."
-	brew install fzf || warn "brew install fzf failed — checkhealth.sh will try the system package manager."
+	retry -t 1800 -s "brew install fzf" brew install fzf || warn "brew install fzf failed — checkhealth.sh will try the system package manager."
 	hash -r
 }
 
