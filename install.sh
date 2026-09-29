@@ -58,7 +58,24 @@ if [ ! -f "$_monkey_scripts/install.sh" ]; then
 			echo "  move it aside, delete it, or set INSTALL_DIR elsewhere." >&2
 			exit 1
 		else
-			git clone "$PROJECT_REPO" "$INSTALL_DIR" || exit 1
+			# No retry() available yet — the framework loads only after this
+			# clone succeeds — so inline the standard 3 attempts. A failed clone
+			# leaves a partial directory behind; remove it so the next attempt
+			# cannot trip over "already exists". This branch only runs on a
+			# fresh install (INSTALL_DIR did not exist or was empty), so the rm
+			# can never delete pre-existing data.
+			_monkey_rc=1
+			for _monkey_attempt in 1 2 3; do
+				if git clone "$PROJECT_REPO" "$INSTALL_DIR"; then
+					_monkey_rc=0
+					break
+				fi
+				rm -rf "$INSTALL_DIR"
+				if [ "$_monkey_attempt" -lt 3 ]; then
+					sleep 2
+				fi
+			done
+			[ "$_monkey_rc" -eq 0 ] || exit 1
 		fi
 		# </dev/null: on the curl|bash path stdin is the script pipe, and the
 		# inner installer must not read what is left of the outer one.
@@ -113,7 +130,12 @@ tmux_ok() {
 	ver=$(tmux_version)
 	[[ -z "$ver" ]] && return 1
 	tmux_is_known_bad "$ver" && return 1
-	version_ge "$ver" "3.2"
+	# 3.4, not 3.2: .tmux.conf uses `destroy-unattached keep-last`, which
+	# older tmux rejects at config parse time ("bad value: keep-last" on
+	# AlmaLinux 9's 3.2a). Keeping the requirement here — instead of
+	# version-guarding the config — means every distro below 3.4 gets the
+	# source build once and the config stays single-pathed.
+	version_ge "$ver" "3.4"
 }
 
 build_tmux_from_source() {
@@ -143,9 +165,19 @@ build_tmux_from_source() {
 	esac
 	if [ -d "$TMUX_SRC_DIR/.git" ]; then
 		info "tmux source already exists at $TMUX_SRC_DIR — pulling latest..."
-		git -C "$TMUX_SRC_DIR" pull --ff-only || warn "git pull failed — building from existing source."
+		retry -s "git pull" git -C "$TMUX_SRC_DIR" pull --ff-only ||
+			warn "git pull failed — building from existing source."
 	else
-		git clone https://github.com/tmux/tmux.git "$TMUX_SRC_DIR"
+		# A failed clone leaves a partial directory behind, which would make
+		# every later attempt (and re-run) fail with "already exists" — clean
+		# it up before giving up, but only when git created it (.git inside)
+		# or it is empty, never when it holds pre-existing user data.
+		if ! retry -s "git clone tmux" git clone https://github.com/tmux/tmux.git "$TMUX_SRC_DIR"; then
+			if [ -d "$TMUX_SRC_DIR" ] && { [ -z "$(ls -A "$TMUX_SRC_DIR")" ] || [ -d "$TMUX_SRC_DIR/.git" ]; }; then
+				rm -rf "$TMUX_SRC_DIR"
+			fi
+			fail "tmux source clone failed after 3 attempts."
+		fi
 	fi
 
 	pushd "$TMUX_SRC_DIR" >/dev/null
@@ -184,13 +216,14 @@ install_tmux() {
 			warn "could not install terminfo — tmux may report an unknown terminal type (tmux-256color)."
 	fi
 	if tmux_ok; then
-		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.2, no known-bad release)."
+		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.4, no known-bad release)."
 		return 0
 	fi
-	# Modern distros ship tmux >= 3.2 — the system package is preferred
+	# Modern distros ship tmux >= 3.4 — the system package is preferred
 	# (security updates, no compiler toolchain needed). The source build
-	# only kicks in for old distros (e.g. CentOS 7 ships 1.8) or known-bad
-	# releases (e.g. openSUSE Tumbleweed's 3.7b), and builds tmux MASTER.
+	# only kicks in for old distros (e.g. AlmaLinux 9's 3.2a, CentOS 7's
+	# 1.8) or known-bad releases (e.g. openSUSE Tumbleweed's 3.7b), and
+	# builds tmux MASTER.
 	info "Installing tmux via the system package manager..."
 	install_pkg tmux || warn "system package manager failed — will try building from source."
 	if tmux_ok; then
@@ -229,7 +262,7 @@ install_tpm_and_plugins() {
 	else
 		mkdir -p "${HOME}/.tmux/plugins"
 		info "Cloning TPM (tmux plugin manager)..."
-		git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
+		retry -s "git clone tpm" git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
 		ok "TPM → $tpm_dir"
 	fi
 
@@ -241,7 +274,7 @@ install_tpm_and_plugins() {
 			info "plugin already present: $plugin"
 			continue
 		fi
-		if git clone "https://github.com/$plugin" "$repo"; then
+		if retry -s "git clone $plugin" git clone "https://github.com/$plugin" "$repo"; then
 			ok "plugin → $repo"
 		else
 			warn "failed to clone plugin: $plugin"
