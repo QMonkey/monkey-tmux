@@ -14,7 +14,7 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Fuzzy completion**: `extrakto` grabs text from pane scrollback into an fzf popup (insert/copy/open/edit/filter)
 - **URL picker**: `prefix + u` fzf-picks URLs in the pane and opens them (`tmux-fzf-url`)
 - **Pane/window management**: standard keybindings + `tmux-pain-control` + `tmux-sessionist`
-- **fzf integration**: prefix+Q for fuzzy session/window/pane/command/keybinding search
+- **fzf integration**: prefix+Z for fuzzy session/window/pane/command/keybinding search
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
 - **Status bar**: custom Sonokai andromeda theme with session, hostname, time, battery
@@ -482,7 +482,8 @@ required once).
 
 | Key          | Action                                              |
 | ------------ | --------------------------------------------------- |
-| `prefix + Q` | fzf menu (session/window/pane/commands/keybindings) |
+| `prefix + Q` | One-key quit: detach current client (server stays)  |
+| `prefix + Z` | fzf menu (session/window/pane/commands/keybindings) |
 | `prefix + O` | tmux-scout AI agent session picker (fzf)            |
 | `prefix + =` | Clipboard buffer history                            |
 | `prefix + R` | Reload config                                       |
