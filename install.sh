@@ -130,12 +130,13 @@ tmux_ok() {
 	ver=$(tmux_version)
 	[[ -z "$ver" ]] && return 1
 	tmux_is_known_bad "$ver" && return 1
-	# 3.4, not 3.2: .tmux.conf uses `destroy-unattached keep-last`, which
-	# older tmux rejects at config parse time ("bad value: keep-last" on
-	# AlmaLinux 9's 3.2a). Keeping the requirement here — instead of
-	# version-guarding the config — means every distro below 3.4 gets the
-	# source build once and the config stays single-pathed.
-	version_ge "$ver" "3.4"
+	# 3.5, not 3.4: .tmux.conf uses `destroy-unattached keep-last`, and
+	# DISTRO-PACKAGED 3.4 can reject it — CentOS Stream's 3.4 fails with
+	# "bad value: keep-last" even though upstream 3.4 added the value
+	# (observed on CentOS). Same principle as before — version-guard the
+	# INSTALL, not the config — so every distro whose tmux is below 3.5
+	# gets the source build once and the config stays single-pathed.
+	version_ge "$ver" "3.5"
 }
 
 build_tmux_from_source() {
