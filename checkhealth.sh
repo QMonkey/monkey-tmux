@@ -57,41 +57,9 @@ OPTIONAL_CHECKS=(
 # (INSTALL_REQUIRED_PHASE=late), installs the package-name mapping in
 # one batch and re-probes via run_required_checks.
 
-install_missing_required() {
-	if ! $INSTALL_MODE || [[ ${#MISSING_REQUIRED[@]} -eq 0 ]]; then
-		return 0
-	fi
-	echo -e "${YELLOW}Installing missing packages: ${MISSING_REQUIRED[*]}${NC}"
-	echo ""
-	# Package names that differ from the binary name, per package manager.
-	# A case function instead of `declare -A`: macOS still ships bash 3.2,
-	# which has no associative arrays.
-	pkg_name() {
-		local bin="$1"
-		case "$OS:$bin" in
-		debian:node) echo "nodejs" ;;
-		debian:which) echo "debianutils" ;;
-		arch:node) echo "nodejs" ;;
-		arch:python3) echo "python" ;;
-		opensuse:node) echo "nodejs" ;;
-		centos:node) echo "nodejs" ;;
-		*) echo "$bin" ;;
-		esac
-	}
-	local pkgs=() b
-	for b in "${MISSING_REQUIRED[@]}"; do
-		pkgs+=("$(pkg_name "$b")")
-	done
-	if install_pkg "${pkgs[@]}"; then
-		run_required_checks
-		if [[ ${#MISSING_REQUIRED[@]} -gt 0 ]]; then
-			echo -e "${RED}Run: $(get_install_hint "$(for b in "${MISSING_REQUIRED[@]}"; do pkg_name "$b"; done | tr '\n' ' ')")${NC}"
-		fi
-	else
-		echo -e "${RED}Install command failed. Run: $(get_install_hint "${pkgs[*]}")${NC}"
-	fi
-	echo ""
-}
+# Required install goes through the shared install_missing_required
+# (monkey-scripts/lib/checks.sh); the node/which/python3 package-name
+# mapping lives in the shared lib/pkg.sh table.
 
 # ──────────────────────── config ────────────────────────
 CONFIG_PHASE=required
