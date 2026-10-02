@@ -43,6 +43,10 @@ REQUIRED_CHECKS=(
 	"@config"
 )
 
+# fzf ships far newer via Homebrew than most distro repos — prefer brew
+# when it exists (install_pkg splits the batch on these names).
+BREW_FIRST=(fzf)
+
 # ──────────────────────── optional ────────────────────────
 # Reported only: nothing installs it (the distro package may not exist on
 # older releases), and a missing one must not fail the check.
