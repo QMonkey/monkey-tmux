@@ -151,22 +151,8 @@ build_tmux_from_source() {
 	# autotools: the master branch has no generated ./configure — autogen.sh
 	# (which needs autoconf/automake) must run before configure.
 	install_build_deps toolchain vcs autotools libevent ncurses bison
-	if [ -d "$TMUX_SRC_DIR/.git" ]; then
-		info "tmux source already exists at $TMUX_SRC_DIR — pulling latest..."
-		retry -s "git pull" git -C "$TMUX_SRC_DIR" pull --ff-only ||
-			warn "git pull failed — building from existing source."
-	else
-		# A failed clone leaves a partial directory behind, which would make
-		# every later attempt (and re-run) fail with "already exists" — clean
-		# it up before giving up, but only when git created it (.git inside)
-		# or it is empty, never when it holds pre-existing user data.
-		if ! retry -t 1800 -s "git clone tmux" git clone https://github.com/tmux/tmux.git "$TMUX_SRC_DIR"; then
-			if [ -d "$TMUX_SRC_DIR" ] && { [ -z "$(ls -A "$TMUX_SRC_DIR")" ] || [ -d "$TMUX_SRC_DIR/.git" ]; }; then
-				rm -rf "$TMUX_SRC_DIR"
-			fi
-			fail "tmux source clone failed after 3 attempts."
-		fi
-	fi
+	clone_repo https://github.com/tmux/tmux.git "$TMUX_SRC_DIR" ||
+		fail "tmux source clone failed."
 
 	pushd "$TMUX_SRC_DIR" >/dev/null
 	info "Compiling tmux (master) with ${JOBS} jobs..."
@@ -235,25 +221,21 @@ install_tmux() {
 # needing a running tmux server. tmux-fingers' binary is built by its own
 # wizard on first use inside tmux.
 install_tpm_and_plugins() {
+	# clone_repo owns the whole lifecycle: repair (interrupted clone), pull
+	# (existing healthy checkout — plugins also refresh on a re-run), clone
+	# (missing), retry inside.
 	local tpm_dir="${HOME}/.tmux/plugins/tpm"
-	if [ -x "$tpm_dir/tpm" ]; then
-		ok "TPM already installed."
-	else
-		mkdir -p "${HOME}/.tmux/plugins"
-		info "Cloning TPM (tmux plugin manager)..."
-		retry -s "git clone tpm" git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
+	if clone_repo https://github.com/tmux-plugins/tpm "$tpm_dir"; then
 		ok "TPM → $tpm_dir"
+	else
+		warn "TPM clone failed — tmux plugins will not install."
 	fi
 
 	local plugin repo
 	while IFS= read -r plugin; do
 		[ -n "$plugin" ] || continue
 		repo="${HOME}/.tmux/plugins/$(basename "$plugin")"
-		if [ -d "$repo" ]; then
-			info "plugin already present: $plugin"
-			continue
-		fi
-		if retry -s "git clone $plugin" git clone "https://github.com/$plugin" "$repo"; then
+		if clone_repo "https://github.com/$plugin" "$repo"; then
 			ok "plugin → $repo"
 		else
 			warn "failed to clone plugin: $plugin"
