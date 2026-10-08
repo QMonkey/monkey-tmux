@@ -18,7 +18,12 @@ set -euo pipefail
 PROJECT=monkey-tmux
 
 # ──────────────────────── version gate ────────────────────────
-MAIN_VERSION="tmux|ver:3.2|tmux|pkg"
+# The full version policy in ONE spec: >= 3.5 (3.4 rejects
+# `destroy-unattached keep-last` on CentOS) minus the known-broken
+# 3.7–3.7b regression (session exit crashes; fixed in 3.7c — tmux#5344).
+# install.sh's tmux_ok gates the SOURCE BUILD with the same numbers; the
+# 5th field extracts suffix versions ("3.7b") intact.
+MAIN_VERSION="tmux|ver:3.5!3.7 3.7a 3.7b|tmux|pkg|[0-9]+\.[0-9]+[a-z]*"
 MAIN_VERSION_TITLE="tmux"
 
 # ──────────────────────── required ────────────────────────
@@ -69,9 +74,10 @@ OPTIONAL_CHECKS=(
 CONFIG_PHASE=required
 INSTALL_REQUIRED_PHASE=late
 # hint reproduces upstream's verbatim missing-fail text (literal
-# /path/to/monkey-tmux placeholder instead of $(pwd)).
+# /path/to/monkey-tmux placeholder instead of a computed path).
+REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG_LINKS=(
-	"$(pwd)/.tmux.conf|$HOME/.tmux.conf|.tmux.conf||.tmux.conf|.tmux.conf not found (run: ln -sfn /path/to/monkey-tmux/.tmux.conf ~/.tmux.conf)"
+	"$REPO_DIR/.tmux.conf|$HOME/.tmux.conf|.tmux.conf||.tmux.conf|.tmux.conf not found (run: ln -sfn $REPO_DIR/.tmux.conf ~/.tmux.conf)"
 )
 # type|params|ok|incomplete|missing
 CONFIG_HINTS=(
