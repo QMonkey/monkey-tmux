@@ -22,10 +22,6 @@ PROJECT_REPO=https://github.com/QMonkey/monkey-tmux.git
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Documents/monkey-tmux}"
 
 # No scripts/ next to this file: either a checkout predating the subtree
-# commit (pull it in and carry on) or `curl | bash`, which has no checkout
-# at all. The latter clones THIS project and runs the install.sh from that
-# checkout, so installer and scripts/ always come from the same revision.
-# No scripts/ next to this file: either a checkout predating the subtree
 # commit (pull it in and carry on), a .git-less directory (zip/tarball),
 # or `curl | bash`, which has no checkout at all. The latter two bootstrap
 # through INSTALL_DIR and run the install.sh from that checkout, so
@@ -94,7 +90,6 @@ fi
 
 # ──────────────────────── layout & data ────────────────────────
 TMUX_SRC_DIR="${TMUX_SRC_DIR:-$HOME/Documents/tmux}" # only for the fallback build
-JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 ACQUIRE_TIOCSTI="${ACQUIRE_TIOCSTI:-monkey-tmux}"
 INSTALL_INFO=(
 	"tmux source: ${CYAN}${TMUX_SRC_DIR}${NC} (used only for the fallback build)"
@@ -115,8 +110,9 @@ SUMMARY_LINES=(
 
 # ──────────────────────── project steps ────────────────────────
 tmux_version() {
-	# "tmux 3.7b" -> "3.7b"; also handles "tmux next-3.4".
-	tmux -V 2>/dev/null | grep -oE '[0-9]+\.[0-9]+[a-z]*' | head -1
+	# "tmux 3.7b" -> "3.7b"; also handles "tmux next-3.4" (shared
+	# extract_version, lib/common.sh — the regex keeps suffix letters).
+	extract_version tmux '[0-9]+\.[0-9]+[a-z]*'
 }
 
 # tmux 3.7 — 3.7b: exiting a session crashes tmux instead of switching to the
@@ -260,6 +256,7 @@ fi'
 	ok "tmux auto-start added to shell profiles."
 }
 
+# ──────────────────────── hooks ────────────────────────
 # A hook prints its own trailing blank line when it produced output.
 install_step_prepare() {
 	ensure_git
