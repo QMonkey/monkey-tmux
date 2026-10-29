@@ -252,7 +252,7 @@ install_autostart() {
         exec tmux new-session -s main
     fi
 fi'
-	append_env_block "monkey-tmux auto-start" "$block"
+	append_env_block "monkey-tmux auto-start" "$block" "tail"
 	ok "tmux auto-start added to shell profiles."
 }
 
