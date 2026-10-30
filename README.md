@@ -65,7 +65,7 @@ Pick one of the two ways below: a one-click script, or manual setup.
 Install tmux (system package when possible, built from source only if the distro version is too old or known-broken), all dependencies, and the plugin set automatically:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/install.sh | bash 2>&1 | tee monkey-tmux-install.log
 ```
 
 > The one-liner needs `git` besides `curl` itself: the installer clones this repository into `~/Documents/monkey-tmux` before it can install anything. If `git` is missing, the script stops with an error — install it with your system's package manager and re-run the same command.
