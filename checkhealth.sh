@@ -36,7 +36,9 @@ REQUIRED_CHECKS=(
 	"git|bin|git"
 	"which|bin|which (needed by fzf-tmux in tmux run-shell)"
 	"@header|fzf${NC} (required by tmux-fzf, tmux-scout, extrakto, tmux-fzf-url)"
-	"fzf|ver:0.51|fzf (need >= 0.51 for tmux-scout)|pkg"
+	# Homebrew first: most distro repos ship fzf far older. The order lives
+	# in this row's strategy now, not in a global list.
+	"fzf|ver:0.51|fzf (need >= 0.51 for tmux-scout)|brew,pkg"
 	"@header|Node.js${NC} (required by tmux-scout)"
 	"node|ver:16|node (need >= 16 for tmux-scout)|pkg"
 	"@header|jq${NC} (required by tmux-assistant-resurrect)"
@@ -47,10 +49,6 @@ REQUIRED_CHECKS=(
 	"@clipboard"
 	"@config"
 )
-
-# fzf ships far newer via Homebrew than most distro repos — prefer brew
-# when it exists (install_pkg splits the batch on these names).
-BREW_FIRST=(fzf)
 
 # ──────────────────────── optional ────────────────────────
 # Reported only: nothing installs it (the distro package may not exist on
