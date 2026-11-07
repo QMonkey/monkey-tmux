@@ -209,9 +209,9 @@ install_tmux() {
 }
 
 # fzf's Homebrew-first install used to live here (install_fzf, before
-# checkhealth ran) — the BREW_FIRST whitelist in checkhealth.sh covers it:
-# a missing fzf is brew-installed (with system fallback) by checkhealth
-# --install itself.
+# checkhealth ran) — its spec row in checkhealth.sh declares the order now
+# (brew,pkg): a missing fzf is brew-installed, with the distro manager as
+# the safety net, by checkhealth --install itself.
 
 # Clone the plugins listed in .tmux.conf — what TPM's prefix+I does, without
 # needing a running tmux server. tmux-fingers' binary is built by its own
@@ -267,7 +267,7 @@ install_step_tool() {
 	echo ""
 }
 install_step_post_tool() {
-	ensure_homebrew
+	brew_ensure
 	echo ""
 }
 install_step_after() {
