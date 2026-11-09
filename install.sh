@@ -15,8 +15,8 @@ set -euo pipefail
 
 # ──────────────────────── repository identity ────────────────────────
 # Declared before the framework is sourced: the bootstrap below needs both
-# values, and clones into the very directory clone_monkey_project would
-# have used — one clone per run, not two.
+# values, and clones into the very directory clone_project would have used —
+# one clone per run, not two.
 PROJECT=monkey-tmux
 PROJECT_REPO=https://github.com/QMonkey/monkey-tmux.git
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Documents/monkey-tmux}"
@@ -34,15 +34,15 @@ if [ ! -f "$_monkey_scripts/install.sh" ]; then
 		# Outdated checkout: update it in place and keep running from it.
 		git -C "$_monkey_dir" pull --ff-only || true
 		if [ ! -f "$_monkey_dir/scripts/install.sh" ]; then
-			echo "monkey-scripts missing from $_monkey_dir (no scripts/ subtree)." >&2
-			echo "  git -C $_monkey_dir pull    # outdated checkout — or the repo never added the subtree" >&2
+			printf '%s\n' "monkey-scripts missing from $_monkey_dir (no scripts/ subtree)." >&2
+			printf '%s\n' "  git -C $_monkey_dir pull    # outdated checkout — or the repo never added the subtree" >&2
 			exit 1
 		fi
 		_monkey_scripts="$_monkey_dir/scripts"
 	else
 		# curl|bash or a .git-less directory: the only path to a
 		# same-revision scripts/ is the INSTALL_DIR checkout.
-		# clone_monkey_project cannot do this job — it lives in the very
+		# clone_project cannot do this job — it lives in the very
 		# scripts/ being fetched. INSTALL_DIR is where the framework's clone
 		# step would have put the checkout too, so that step only confirms it.
 		if [ -d "$INSTALL_DIR/.git" ]; then
@@ -50,15 +50,15 @@ if [ ! -f "$_monkey_scripts/install.sh" ]; then
 			git -C "$INSTALL_DIR" pull --ff-only || true
 		elif [ -d "$INSTALL_DIR" ] && [ -n "$(ls -A "$INSTALL_DIR")" ]; then
 			# git clone would refuse too, so say why in our own words.
-			echo "$INSTALL_DIR is not empty and is not a git clone." >&2
-			echo "  move it aside, delete it, or set INSTALL_DIR elsewhere." >&2
+			printf '%s\n' "$INSTALL_DIR is not empty and is not a git clone." >&2
+			printf '%s\n' "  move it aside, delete it, or set INSTALL_DIR elsewhere." >&2
 			exit 1
 		else
 			# Fresh clone — the ONLY sub-branch where git is hard-required:
 			# the pull sub-branch above degrades gracefully without it, and
 			# a zip/tarball must not fail here just for a missing git.
 			if ! command -v git >/dev/null 2>&1; then
-				echo "git is required to clone $PROJECT — install it first (e.g. sudo apt-get install git), then re-run." >&2
+				printf '%s\n' "git is required to clone $PROJECT — install it first (e.g. sudo apt-get install git), then re-run." >&2
 				exit 1
 			fi
 			# No retry() available yet — the framework loads only after this
@@ -135,10 +135,10 @@ tmux_ok() {
 	tmux_is_known_bad "$ver" && return 1
 	# 3.5, not 3.4: .tmux.conf uses `destroy-unattached keep-last`, and
 	# DISTRO-PACKAGED 3.4 can reject it — CentOS Stream's 3.4 fails with
-	# "bad value: keep-last" even though upstream 3.4 added the value
-	# (observed on CentOS). Same principle as before — version-guard the
-	# INSTALL, not the config — so every distro whose tmux is below 3.5
-	# gets the source build once and the config stays single-pathed.
+	# "bad value: keep-last" even though upstream 3.4 added the value.
+	# Version-guard the INSTALL, not the config — so every distro whose
+	# tmux is below 3.5 gets the source build once and the config stays
+	# single-pathed.
 	version_ge "$ver" "3.5"
 }
 
@@ -152,8 +152,6 @@ build_tmux_from_source() {
 
 	pushd "$TMUX_SRC_DIR" >/dev/null
 	info "Compiling tmux (master) with ${JOBS} jobs..."
-	# The master branch does not ship a generated ./configure — autogen.sh
-	# produces it (needs autoconf + automake, installed above).
 	if [ ! -f ./configure ]; then
 		sh ./autogen.sh 2>&1 | tee /tmp/tmux-autogen.log || {
 			fail "tmux autogen.sh failed. Check /tmp/tmux-autogen.log"
@@ -178,22 +176,21 @@ build_tmux_from_source() {
 install_tmux() {
 	# openSUSE splits the terminfo database: terminfo-base is minimal and
 	# terminfo-screen carries only screen.* aliases — NO tmux entries in
-	# either (verified against the Leap 16 / Tumbleweed RPM contents).
-	# Without the full terminfo package, every shell inside tmux hits
-	# "tset: unknown terminal type tmux-256color".
+	# either. Without the full terminfo package, every shell inside tmux
+	# hits "tset: unknown terminal type tmux-256color".
 	if [ "$OS" = opensuse ]; then
 		install_pkg terminfo ||
 			warn "could not install terminfo — tmux may report an unknown terminal type (tmux-256color)."
 	fi
 	if tmux_ok; then
-		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.4, no known-bad release)."
+		ok "tmux $(tmux_version) already installed and meets requirement (>= 3.5, no known-bad release)."
 		return 0
 	fi
-	# Modern distros ship tmux >= 3.4 — the system package is preferred
-	# (security updates, no compiler toolchain needed). The source build
-	# only kicks in for old distros (e.g. AlmaLinux 9's 3.2a, CentOS 7's
-	# 1.8) or known-bad releases (e.g. openSUSE Tumbleweed's 3.7b), and
-	# builds tmux MASTER.
+	# Modern distros already ship a tmux that passes tmux_ok — the system
+	# package is preferred (security updates, no compiler toolchain needed).
+	# The source build only kicks in for old distros (e.g. AlmaLinux 9's
+	# 3.2a, CentOS 7's 1.8) or known-bad releases (see tmux_is_known_bad),
+	# and builds tmux MASTER.
 	info "Installing tmux via the system package manager..."
 	install_pkg tmux || warn "system package manager failed — will try building from source."
 	if tmux_ok; then
@@ -208,10 +205,9 @@ install_tmux() {
 	fi
 }
 
-# fzf's Homebrew-first install used to live here (install_fzf, before
-# checkhealth ran) — its spec row in checkhealth.sh declares the order now
-# (brew,pkg): a missing fzf is brew-installed, with the distro manager as
-# the safety net, by checkhealth --install itself.
+# No fzf step here: checkhealth.sh's spec row declares the brew,pkg order, so
+# a missing fzf is brew-installed with the distro manager as the safety net,
+# by checkhealth --install itself.
 
 # Clone the plugins listed in .tmux.conf — what TPM's prefix+I does, without
 # needing a running tmux server. tmux-fingers' binary is built by its own
@@ -246,11 +242,11 @@ install_tpm_and_plugins() {
 # append_env_block so it lands in the profile files with dedup.
 install_autostart() {
 	local block='if [[ -z "${TMUX:-}" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
-    if tmux has-session -t main 2>/dev/null; then
-        exec tmux new-session -t main \; new-window
-    else
-        exec tmux new-session -s main
-    fi
+	if tmux has-session -t main 2>/dev/null; then
+		exec tmux new-session -t main \; new-window
+	else
+		exec tmux new-session -s main
+	fi
 fi'
 	append_env_block "monkey-tmux auto-start" "$block" "tail"
 	ok "tmux auto-start added to shell profiles."
@@ -260,21 +256,21 @@ fi'
 # A hook prints its own trailing blank line when it produced output.
 install_step_prepare() {
 	ensure_git
-	echo ""
+	printf '\n'
 }
 install_step_tool() {
 	install_tmux
-	echo ""
+	printf '\n'
 }
 install_step_post_tool() {
 	brew_ensure
-	echo ""
+	printf '\n'
 }
 install_step_after() {
 	install_tpm_and_plugins
-	echo ""
+	printf '\n'
 	install_autostart
-	echo ""
+	printf '\n'
 }
 
 install_main "$@"
