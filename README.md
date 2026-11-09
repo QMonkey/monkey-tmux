@@ -11,10 +11,10 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **Session persistence**: auto-save/restore via `tmux-resurrect` + `tmux-continuum`
 - **Vim-style copy mode**: `v/V/C-v` for selection, `H/L` for line nav, `h/j/k/l` for movement
 - **Fuzz copy**: `tmux-fingers` provides vimium-style hint-based copy/paste
-- **Fuzzy completion**: `extrakto` grabs text from pane scrollback into an fzf popup (insert/copy/open/edit/filter)
+- **Fuzzy completion**: `extrakto` grabs text from the current window's scrollback into an fzf popup (insert/copy/open/edit/filter)
 - **URL picker**: `prefix + u` fzf-picks URLs in the pane and opens them (`tmux-fzf-url`)
 - **Pane/window management**: standard keybindings + `tmux-pain-control` + `tmux-sessionist`
-- **fzf integration**: prefix+Z for fuzzy session/window/pane/command/keybinding search
+- **fzf integration**: prefix+Z for fuzzy session/window/pane/command/keybinding/clipboard/process search
 - **Clipboard**: `tmux-yank` for system clipboard, `tmux-open` for opening files/urls
 - **Logging**: `tmux-logging` for saving pane output
 - **Status bar**: custom Sonokai andromeda theme with session, hostname, time, battery
@@ -22,39 +22,46 @@ A tmux configuration focused on functional completeness, performance, Vim-like k
 - **AI agent monitoring**: `tmux-scout` status widget + fzf picker for tracking AI coding agent sessions
 - **AI session persistence**: `tmux-assistant-resurrect` restores AI coding assistant sessions (Claude Code, OpenCode, etc.) across tmux restarts
 - **Mouse support**: native tmux mouse (`set -g mouse on`)
-- **Modal indicator**: mode indicator (prefix/copy/normal) in status bar
+- **Modal indicator**: mode indicator (prefix/copy/sync/normal) in status bar
 - **TTY-safe**: no powerline glyphs, pure block separators, works in any terminal
 
 ## Requirements
 
-- tmux >= 3.2
+- tmux >= 3.5 (the config uses `destroy-unattached keep-last`, which distro-packaged 3.4 rejects — so the floor is 3.5, not the 3.4 that added the option upstream)
 - [fzf](https://github.com/junegunn/fzf) >= 0.51 (required for `tmux-fzf`, `tmux-scout`, `extrakto`, `tmux-fzf-url`)
 - [python3](https://www.python.org/) (required for `extrakto`)
 - [Node.js](https://nodejs.org/) >= 16 (required for `tmux-scout`)
 - [jq](https://jqlang.github.io/jq/) (required for `tmux-assistant-resurrect`)
-- xclip, xsel (X11) or [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (Wayland, for clipboard)
+- xclip, xsel (X11) or [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (Wayland) — a clipboard provider for `tmux-yank`; macOS uses the built-in `pbcopy`, WSL the Windows `clip.exe`
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (optional — recommended for faster fzf search; never installed automatically)
 
-`tmux-fzf-url` self-installs its bundled `xre` binary on first use (needs `curl`).
+`tmux-fzf-url` downloads its `xre` helper on first use (needs `curl` once).
 
 ### Install dependencies
 
 ```bash
 # Ubuntu/Debian
-sudo apt-get install fzf python3 debianutils
+sudo apt-get install git fzf python3 nodejs jq debianutils xclip
 
 # OpenSUSE
-sudo zypper install fzf python3 which
+sudo zypper install git fzf python3 nodejs jq which terminfo
 
 # CentOS (enable EPEL first)
 sudo dnf install epel-release
-sudo dnf install fzf python3 which
+sudo dnf install git fzf python3 nodejs jq xclip
 
 # Arch Linux
-sudo pacman -S fzf python3 which
+sudo pacman -S git fzf python nodejs jq which xclip
 
 # macOS
-brew install fzf python3 which
+brew install git fzf python3 node jq
 ```
+
+`checkhealth.sh --install` resolves these names per distro (`node` → `nodejs`,
+Arch's `python`, Debian/Ubuntu's `which` inside `debianutils`), so the check
+script is the shorter path. On openSUSE the full `terminfo` package matters:
+`terminfo-base`/`terminfo-screen` carry no `tmux-256color` entry, so every
+shell inside tmux hits `tset: unknown terminal type tmux-256color`.
 
 ## Installation
 
@@ -72,27 +79,30 @@ curl -fsSL https://raw.githubusercontent.com/QMonkey/monkey-tmux/master/install.
 
 What the script does, step by step:
 
-1. Install tmux — the system package is preferred (tmux >= 3.2 is all the config needs); if the distro version is too old or a known-bad release (3.7b crashes on session exit), tmux master is built from source into `/usr/local`
-2. Pre-authorize `sudo` once — the only password entry of the whole run — and install a **temporary** NOPASSWD sudoers drop-in for the invoking user, removed automatically on exit. Homebrew resets the sudo timestamp on every `brew` invocation and WSL2 clock jumps invalidate tickets; NOPASSWD makes the run immune to both in any command order. If the drop-in cannot be installed, the script falls back to a background keepalive plus lazy re-authentication
+1. Pre-authorize `sudo` once — the only password entry of the whole run — and install a **temporary** NOPASSWD sudoers drop-in for the invoking user, removed automatically on exit. Homebrew resets the sudo timestamp on every `brew` invocation and WSL2 clock jumps invalidate tickets; NOPASSWD makes the run immune to both in any command order. If the drop-in cannot be installed, or is written but not parsed, the run falls back to the sudo timestamp: one re-authentication on a long run, and a privileged step that cannot prompt fails and is reported instead
+2. Install tmux — the system package is preferred (tmux >= 3.5 is all the config needs); if the distro version is too old or a known-bad release (3.7, 3.7a, 3.7b crash on session exit), tmux master is built from source into `/usr/local`
 3. Install Homebrew (Linuxbrew) as the fallback package manager — its shellenv is persisted to your shell rc files (with PATH dedup guards) even when Homebrew already existed
-4. Install `fzf` via Homebrew (tmux-scout needs >= 0.51; distro packages lag far behind)
-5. Clone monkey-tmux to `~/Documents/monkey-tmux` (or update it if already cloned)
-6. Install the remaining dependencies (git, which, node, jq, python3, xclip) via `checkhealth.sh --install`; WSL Windows-PATH shims (`/mnt/...`) are detected and the real Linux packages get installed instead
-7. Symlink `~/.tmux.conf` to the repo, clone TPM, and clone every plugin listed in `.tmux.conf` — no need to press `prefix + I`
-8. Add the auto-start block to your shell profiles — every interactive non-tmux shell execs into the `main` session (see [Disable auto-start](#disable-auto-start))
+4. Clone monkey-tmux to `~/Documents/monkey-tmux` (or update it if already cloned)
+5. Install the dependencies (git, which, fzf >= 0.51, node, jq, python3, a clipboard provider) via `checkhealth.sh --install`; fzf asks Homebrew first and the distro manager second (`brew,pkg` — most distro repos ship an fzf far below 0.51), and WSL Windows-PATH shims (`/mnt/...`) are detected so the real Linux packages get installed instead
+6. Symlink `~/.tmux.conf` to the repo, clone TPM, and clone every plugin listed in `.tmux.conf` — no need to press `prefix + I`
+7. Add the auto-start block to your shell profiles — every interactive non-tmux shell execs into the `main` session (see [Disable auto-start](#disable-auto-start))
 
 > The script keeps the tmux source tree at `~/Documents/tmux` only when the fallback build was used. Once your distro ships a fixed/current tmux, remove `/usr/local/bin/tmux` to fall back to the system package.
+>
+> Set these before the one-liner to move things: `INSTALL_DIR` (where the repo is cloned and the config lives, default `~/Documents/monkey-tmux`), `TMUX_SRC_DIR` (source tree of the fallback build, default `~/Documents/tmux`), `JOBS` (build parallelism, default `nproc`). `SUDO_DROPIN` (NOPASSWD drop-in on/off) is documented by `./checkhealth.sh --help`.
 >
 > WSL note: the config yanks through Windows' `clip.exe` on purpose — it is the one "Windows shim" the scripts treat as a first-class tool.
 
 ### Option 2: Manual installation
 
 ```bash
-git clone https://github.com/QMonkey/monkey-tmux.git ~/monkey-tmux
-ln -sfn $(pwd)/.tmux.conf ~/.tmux.conf
+git clone https://github.com/QMonkey/monkey-tmux.git ~/Documents/monkey-tmux
+ln -sfn ~/Documents/monkey-tmux/.tmux.conf ~/.tmux.conf
 ```
 
-Start tmux, then press `prefix + I` to install plugins.
+Start tmux. The config's first-start hook clones TPM and installs every
+plugin listed in `.tmux.conf` in a popup — `prefix + I` is the manual retry
+for anything missing, `prefix + U` updates what is already there.
 
 ### Dependency check
 
@@ -108,13 +118,18 @@ To auto-install missing packages:
 ./checkhealth.sh --install
 ```
 
+Either run exits 1 when a required dependency is missing and 0 otherwise; a
+missing optional tool never changes that.
+
 ### Install tmux-scout agent hooks
 
 `tmux-scout` tracks AI coding agent sessions via hooks written into each
-agent CLI's config. The plugin loads these hooks once per agent — they are not
-re-run on every tmux start. After `prefix + I`, run this once to wire up all
-installed agents (Claude Code, OpenCode, Cursor, Codex, Gemini, Kimi, Copilot
-CLI, etc.):
+agent CLI's config. The hooks fire from the agent CLI itself, not from tmux
+start. `.tmux.conf` checks them on every start and reload (in the background)
+and runs `install` for any agent that is missing them, so after `prefix + I`
+this is normally automatic — run it by hand to wire up all installed agents
+(Claude Code, OpenCode, Cursor, Codex, Gemini, Kimi, Copilot CLI, etc.)
+explicitly:
 
 ```bash
 eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" install
@@ -134,7 +149,8 @@ eval "$(tmux show-env -g SCOUT_DIR)" && "$SCOUT_DIR/scripts/setup.sh" uninstall 
 ```
 
 Re-run `install` only when the plugin directory has moved (e.g. TPM re-cloned
-it to a new path) or when you add a new agent CLI.
+it to a new path) or when you add a new agent CLI — in that case the
+automatic check on the next start (or `prefix + R`) picks it up by itself.
 
 ### tmux-scout status bar
 
@@ -191,12 +207,10 @@ clones _this_ repo straight into the install directory (`~/Documents/monkey-tmux
 and runs the `install.sh` from that clone, so the installer and the `scripts/`
 it loads always come from the same revision. If that directory already exists
 but is not a git clone, the installer refuses to touch it and tells you so.
-Once the subtree above is committed and
-pushed, a regular `git clone` of this repo already contains `scripts/` —
-there is nothing extra to clone or pull; updates arrive through a plain
-`git pull`. Only a checkout from before that commit lacks `scripts/`:
-`git pull` (or re-running `install.sh`, which pulls that checkout in place)
-fixes it.
+A regular `git clone` of this repo already contains `scripts/` — there is
+nothing extra to clone or pull; updates arrive through a plain `git pull`.
+Only a checkout from before the subtree commit lacks `scripts/`: `git pull`
+(or re-running `install.sh`, which pulls that checkout in place) fixes it.
 
 ## Auto-start tmux on shell login
 
@@ -211,7 +225,9 @@ fixes it.
 > script). If a user's shell/rc ever breaks, you can still log in as `root` or
 > drop to single-user mode to fix it.
 
-Add to your `~/.bashrc` or `~/.zshrc`:
+The installer writes this block into your login profile (`~/.zprofile` for zsh,
+`~/.bash_profile`/`~/.profile` plus `~/.bashrc` for bash) under a marker line,
+guarded against duplicates; to add it by hand, put it in the same file:
 
 - `-z "$TMUX"` — only run when not already inside tmux, preventing nested
   sessions.
@@ -220,10 +236,10 @@ Add to your `~/.bashrc` or `~/.zshrc`:
 - `command -v tmux` — skip silently when tmux isn't installed.
 - `exec` — replaces the shell process so `exit` closes the terminal directly.
 
-**Shared session (recommended)**:
+**Shared session (recommended, what the installer writes)**:
 
 ```bash
-if [[ -z "$TMUX" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
+if [[ -z "${TMUX:-}" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
     if tmux has-session -t main 2>/dev/null; then
         exec tmux new-session -t main \; new-window
     else
@@ -295,6 +311,7 @@ Status sections map to these colors:
 | time + date                  | `@thm_coal`                   |
 | battery                      | `@thm_slate`                  |
 | free / attention             | `@thm_orange` / `@thm_purple` |
+| bell / reject                | `@thm_red`                    |
 
 The battery block is shown only when a real battery is present. On Linux it
 checks `/sys/class/power_supply/*/type` for a `Battery` entry (a bare dir check
@@ -302,7 +319,6 @@ isn't enough — desktops have `Mains`/`USB` supplies); on macOS it requires
 `pmset -g batt` to report `present: true` (so desktop Macs never show a bogus
 `BAT:0%`). Other platforms let the plugin try. The gate is the `@battery_enabled`
 option set via `if-shell` in `.tmux.conf`.
-| bell / reject | `@thm_red` |
 
 The palette is truecolor hex by default; on a bare Linux TTY
 (`TERM=linux`) it falls back to the fixed 16-color VGA palette via the `%if`
@@ -317,21 +333,24 @@ Prefix is `Ctrl+a`. Use `Ctrl+a` `Ctrl+a` to send literal Ctrl+a to the shell.
 
 ### Session
 
-| Key                | Action                        |
-| ------------------ | ----------------------------- |
-| `prefix + C-s`     | Save session                  |
-| `prefix + C-r`     | Restore session               |
-| `prefix + g`       | Switch to session (prompt)    |
-| `prefix + s`       | Choose session from list      |
-| `prefix + S`       | Switch to last session        |
-| `prefix + (`       | Previous session              |
-| `prefix + )`       | Next session                  |
-| `prefix + C`       | Create session by name        |
-| `prefix + X`       | Kill current session          |
-| `prefix + @`       | Promote pane to new session   |
-| `prefix + C-Space` | Promote window to new session |
-| `prefix + t`       | Join pane into current window |
-| `prefix + $`       | Rename session                |
+| Key            | Action                        |
+| -------------- | ----------------------------- |
+| `prefix + C-s` | Save session                  |
+| `prefix + C-r` | Restore session               |
+| `prefix + g`   | Switch to session (prompt)    |
+| `prefix + s`   | Choose session from list      |
+| `prefix + S`   | Switch to last session        |
+| `prefix + (`   | Previous session              |
+| `prefix + )`   | Next session                  |
+| `prefix + C`   | Create session by name        |
+| `prefix + X`   | Kill current session          |
+| `prefix + @`   | Promote pane to new session   |
+| `prefix + C-@` | Promote window to new session |
+| `prefix + t`   | Join pane into current window |
+| `prefix + $`   | Rename session                |
+
+`C-@` is how tmux lists `Ctrl+Space` — sessionist's default promote-window
+key.
 
 ### Window (tab)
 
@@ -386,7 +405,7 @@ Enter with `prefix + [`.
 | `0`           | Start of line (alt)                           |
 | `^`           | Back to indentation                           |
 | `$`           | End of line (alt)                             |
-| `gg` / `G`    | Top/bottom of buffer                          |
+| `g` / `G`     | Top/bottom of buffer                          |
 | `C-f` / `C-b` | Page down/up                                  |
 | `C-d` / `C-u` | Half page down/up                             |
 | `J` / `K`     | Scroll down/up                                |
@@ -394,7 +413,7 @@ Enter with `prefix + [`.
 | `V`           | Select line                                   |
 | `C-v`         | Rectangle selection (begin)                   |
 | `y`           | Copy to clipboard                             |
-| `Y`           | Copy to tmux buffer (put)                     |
+| `Y`           | Put: copy selection, then paste into the pane |
 | `M-y`         | Yank and put (copy + paste)                   |
 | `Esc` / `q`   | Cancel/exit                                   |
 | `/` / `?`     | Search forward/backward (regex)               |
@@ -454,16 +473,42 @@ hints; press the hint letters to act on a match.
 keep `prefix + J` free for pain-control's resize-down and `prefix + t` for
 sessionist's join-pane.
 
+The plugin ships no prebuilt binary for every platform: TPM clones it, and
+the first run inside tmux (right after `prefix + I`) walks through a wizard
+that builds the binary. Until that build finishes, the keys above are not
+bound at all — `checkhealth.sh` reports the missing binary as an advisory
+item, never as a failure.
+
 ### Extrakto (fuzzy completion from scrollback)
 
-`prefix + G` opens an fzf popup with text grabbed from the current pane. Pick
-a completion to insert it into the command line, or use the popup keys shown
-in the fzf header (`i` insert, `c` copy, `o` open, `e` edit, `f` filter,
-`g` re-grab, `h` help) to act on the grabbed text.
+`prefix + G` opens an fzf popup with text grabbed from the current window
+(`@extrakto_grab_area` default `window full` = all panes of the window, full
+scrollback). Type to narrow the list, then act on the highlighted match:
+`TAB` inserts it into the active pane, `Enter` copies it to the clipboard.
 
-| Key          | Action                                      |
-| ------------ | ------------------------------------------- |
-| `prefix + G` | Grab pane text (screen or history) into fzf |
+The letters in the popup header (`i c o e f g h`) are the format tokens of
+`@extrakto_fzf_header`, not keys: each token says which action to show and is
+rendered as `<key>=<action>` from the matching `@extrakto_*_key` option
+(`ctrl-` is printed as `^`), so the default header reads
+`tab=insert, enter=copy, ^o=open, ^e=edit, ^f=filter, ^g=grab, ^l=help` — the
+filter and grab entries additionally show their current mode.
+The key defaults:
+
+| Key          | Action                                            |
+| ------------ | ------------------------------------------------- |
+| `prefix + G` | Open the popup with the grabbed text              |
+| `TAB`        | Insert the selection into the active pane         |
+| `Enter`      | Copy the selection to the clipboard               |
+| `ctrl-o`     | Open the selection with the OS open command       |
+| `ctrl-e`     | Open the selection in `$EDITOR`                   |
+| `ctrl-f`     | Cycle filter mode (word / all / line)             |
+| `ctrl-g`     | Cycle grab area (recent / full / window variants) |
+| `ctrl-l`     | Help                                              |
+| `ctrl-t`     | Cycle clipboard mode (bg / buffer)                |
+
+`shift-TAB` selects multiple entries. `ctrl-t` is the one action the default
+header does not show — its token is `m`, add it to `@extrakto_fzf_header` to
+see it.
 
 Bound to `G` instead of upstream's default `Tab`, which would clash with
 `prefix + Tab` (last-window).
@@ -475,24 +520,31 @@ Bound to `G` instead of upstream's default `Tab`, which would clash with
 | `prefix + u` | fzf over URLs in the pane; Enter opens them       |
 | `ctrl-y`     | In the picker, copy the selected URL to clipboard |
 
-On first use the plugin installs its `xre` binary automatically (`curl` is
-required once).
+On first use the plugin downloads and installs its `xre` helper (`curl` is
+required once); the URL list is then extracted with it.
 
 ### Other
 
-| Key          | Action                                              |
-| ------------ | --------------------------------------------------- |
-| `prefix + Q` | One-key quit: detach current client (server stays)  |
-| `prefix + Z` | fzf menu (session/window/pane/commands/keybindings) |
-| `prefix + O` | tmux-scout AI agent session picker (fzf)            |
-| `prefix + =` | Clipboard buffer history                            |
-| `prefix + R` | Reload config                                       |
-| `prefix + ?` | List keybindings                                    |
-| `prefix + :` | Command prompt (tmux commands)                      |
-| `prefix + y` | Copy command line to clipboard                      |
-| `prefix + Y` | Copy pane CWD to clipboard                          |
-| `prefix + d` | Detach client                                       |
-| `prefix + D` | Choose client to detach                             |
+| Key          | Action                                             |
+| ------------ | -------------------------------------------------- |
+| `prefix + Q` | One-key quit: detach current client (server stays) |
+| `prefix + Z` | fzf launcher menu (items listed below)             |
+| `prefix + O` | tmux-scout AI agent session picker (fzf)           |
+| `prefix + =` | Clipboard buffer history                           |
+| `prefix + R` | Reload config                                      |
+| `prefix + ?` | List keybindings                                   |
+| `prefix + :` | Command prompt (tmux commands)                     |
+| `prefix + y` | Copy command line to clipboard                     |
+| `prefix + Y` | Copy pane CWD to clipboard                         |
+| `prefix + d` | Detach client                                      |
+| `prefix + D` | Choose client to detach                            |
+
+`prefix + Z` is `tmux-fzf`'s launcher key (`TMUX_FZF_LAUNCH_KEY Z` in
+`.tmux.conf`). With the plugin defaults its menu lists: session, window,
+pane, command, keybinding, clipboard, process — plus copy-mode, which is
+dropped unless the active pane is in copy mode — and `[cancel]`.
+`TMUX_FZF_ORDER` (a `set-environment -g` variable) reorders or disables
+entries.
 
 ### Command prompt key bindings
 
@@ -516,7 +568,12 @@ Edit `~/.tmux.conf`. After changes, reload with `prefix + R`.
 
 ### Disable auto-start
 
-Remove or comment out `tmux-continuum` from the plugin list.
+Delete the auto-start block the installer wrote: it is the block under the
+marker line `# [tail] monkey-tmux auto-start` in your login profile
+(`~/.zprofile` for zsh, `~/.bash_profile`/`~/.profile` plus `~/.bashrc` for
+bash). Remove the block and its marker line — new shells then start without
+tmux. `tmux-continuum` is a separate concern: it auto-restores the session
+inside tmux, and disabling it does not stop the shell from exec'ing into tmux.
 
 ## Troubleshooting
 
