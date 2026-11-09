@@ -9,8 +9,8 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────
 
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/scripts/checkhealth.sh" || {
-	echo "monkey-scripts not found — update this checkout (git pull / re-clone)," >&2
-	echo "or run install.sh, which bootstraps monkey-scripts itself." >&2
+	printf '%s\n' "monkey-scripts not found — update this checkout (git pull / re-clone)," >&2
+	printf '%s\n' "or run install.sh, which bootstraps monkey-scripts itself." >&2
 	exit 1
 }
 
@@ -27,7 +27,7 @@ MAIN_VERSION="tmux|ver:3.5!3.7 3.7a 3.7b|tmux|pkg|[0-9]+\.[0-9]+[a-z]*"
 MAIN_VERSION_TITLE="tmux"
 
 # ──────────────────────── required ────────────────────────
-# Every plugin dependency gets its own bold section, as upstream always had:
+# Every plugin dependency gets its own bold section:
 #   @header|Title   section title (${NC} ends the bold span early)
 #   @clipboard      tmux-yank's clipboard probe (CHECK_CLIPBOARD=required)
 #   @config         the "Config files" section
@@ -36,8 +36,7 @@ REQUIRED_CHECKS=(
 	"git|bin|git"
 	"which|bin|which (needed by fzf-tmux in tmux run-shell)"
 	"@header|fzf${NC} (required by tmux-fzf, tmux-scout, extrakto, tmux-fzf-url)"
-	# Homebrew first: most distro repos ship fzf far older. The order lives
-	# in this row's strategy now, not in a global list.
+	# Homebrew first: most distro repos ship an fzf far below 0.51.
 	"fzf|ver:0.51|fzf (need >= 0.51 for tmux-scout)|brew,pkg"
 	"@header|Node.js${NC} (required by tmux-scout)"
 	"node|ver:16|node (need >= 16 for tmux-scout)|pkg"
@@ -60,19 +59,15 @@ OPTIONAL_CHECKS=(
 )
 
 # ──────────────────────── required install ────────────────────────
-# Verbatim upstream: tmux runs this AFTER Terminal capabilities
-# (INSTALL_REQUIRED_PHASE=late), installs the package-name mapping in
-# one batch and re-probes via run_required_checks.
-
 # Required install goes through the shared install_missing_required
-# (monkey-scripts/lib/checks.sh); the node/which/python3 package-name
-# mapping lives in the shared lib/pkg.sh table.
+# (lib/missing.sh) AFTER Terminal capabilities (INSTALL_REQUIRED_PHASE=late
+# below) — one batch, then run_required_checks (lib/checks.sh) re-probes.
+# node/which/python3 get their distro package names from distro_name
+# (lib/distro.sh).
 
 # ──────────────────────── config ────────────────────────
 CONFIG_PHASE=required
 INSTALL_REQUIRED_PHASE=late
-# hint reproduces upstream's verbatim missing-fail text (literal
-# /path/to/monkey-tmux placeholder instead of a computed path).
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG_LINKS=(
 	"$REPO_DIR/.tmux.conf|$HOME/.tmux.conf|.tmux.conf||.tmux.conf|.tmux.conf not found (run: ln -sfn $REPO_DIR/.tmux.conf ~/.tmux.conf)"
