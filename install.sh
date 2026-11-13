@@ -263,7 +263,7 @@ install_step_tool() {
 	printf '\n'
 }
 install_step_post_tool() {
-	brew_ensure
+	brew_ensure || true
 	printf '\n'
 }
 install_step_after() {
