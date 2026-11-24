@@ -85,7 +85,7 @@ What the script does, step by step:
 4. Clone monkey-tmux to `~/Documents/monkey-tmux` (or update it if already cloned)
 5. Install the dependencies (git, which, fzf >= 0.51, node, jq, python3, a clipboard provider) via `checkhealth.sh --install`; fzf asks Homebrew first and the distro manager second (`brew,pkg` — most distro repos ship an fzf far below 0.51), and WSL Windows-PATH shims (`/mnt/...`) are detected so the real Linux packages get installed instead
 6. Symlink `~/.tmux.conf` to the repo, clone TPM, and clone every plugin listed in `.tmux.conf` — no need to press `prefix + I`
-7. Add the auto-start block to your shell profiles — every interactive non-tmux shell execs into the `main` session (see [Disable auto-start](#disable-auto-start))
+7. Add the auto-start block to your shell profiles — every interactive non-tmux shell attaches to the `main` session, adding one window per terminal (see [Disable auto-start](#disable-auto-start))
 
 > The script keeps the tmux source tree at `~/Documents/tmux` only when the fallback build was used. Once your distro ships a fixed/current tmux, remove `/usr/local/bin/tmux` to fall back to the system package.
 >
@@ -234,24 +234,38 @@ guarded against duplicates; to add it by hand, put it in the same file:
 - `[[ $- == *i* ]]` — only run in interactive shells, so `scp`/`rsync`/`ssh`
   remote commands don't spawn tmux.
 - `command -v tmux` — skip silently when tmux isn't installed.
-- `exec` — replaces the shell process so `exit` closes the terminal directly.
+- `new-session -d` — claims `main` **without** attaching, so its exit code is the
+  answer to "did I just create it?" and a lost race can't kill the terminal.
+- `tmux ... && exit` — detaching closes the terminal; a tmux that fails to start
+  leaves you the shell you were already in, with its error still on screen.
 
 **Shared session (recommended, what the installer writes)**:
 
 ```bash
 if [[ -z "${TMUX:-}" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
-    if tmux has-session -t main 2>/dev/null; then
-        exec tmux new-session -t main \; new-window
-    else
-        exec tmux new-session -s main
-    fi
+    tmux new-session -d -s main 2>/dev/null || tmux new-window -t main 2>/dev/null
+    tmux new-session -A -s main && exit
 fi
 ```
 
-The first terminal creates the `main` session and triggers continuum
-auto-restore. Subsequent terminals create a new grouped session sharing
-`main`'s windows, then open a fresh window — each terminal has independent
-window/pane navigation while sharing the same session windows.
+The first terminal claims `main` (which then runs the continuum auto-restore in
+the background) and uses the window it ships with; every later terminal adds one
+window of its own. `new-session -A` is the only attach step, so it either joins
+the existing session or creates it — no branch can fail with `duplicate session`.
+
+Two consequences worth knowing before you change this:
+
+- All terminals share `main`'s single current-window pointer (tmux has no
+  per-client current window), so switching windows in one moves the others. The
+  previous revision avoided that with grouped alias sessions created by
+  `new-session -t main`, which is also where names like `main-1 (group main)`
+  came from; those are gone now, and so is that independence.
+- Continuum's restore and this block both act on `main` within the first second
+  of a cold start, and the order is not controllable: the restore fires after
+  `sleep 1` while a 15-plugin `~/.tmux.conf` takes ~1.1 s to parse. Whichever
+  wins, the block above lands you inside a session. If you need the first
+  terminal to always get the restored windows instead of an extra one, set
+  `@continuum-restore 'off'` and restore manually with `prefix + Ctrl-r`.
 
 **Independent sessions**:
 
