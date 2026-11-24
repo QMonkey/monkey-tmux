@@ -237,16 +237,20 @@ install_tpm_and_plugins() {
 	ok "Plugins installed."
 }
 
-# Every interactive, non-tmux shell execs into the main session (self-guarded:
+# Every interactive, non-tmux shell attaches to the main session (self-guarded:
 # no-op when $TMUX is set or the shell is non-interactive). Written via
 # append_env_block so it lands in the profile files with dedup.
+#
+# `-d` claims the session without attaching, so its exit code is the answer to
+# "did I just create it?": 0 → use the window it ships with; 1 → it already
+# exists (another terminal, or continuum's restore winning the cold-start race)
+# → open a window of our own. `-A` is then the only attach step, so no branch can
+# die on `duplicate session`, and `&& exit` keeps "detach closes the terminal"
+# while a tmux that fails to start leaves the login shell and its error behind.
 install_autostart() {
 	local block='if [[ -z "${TMUX:-}" ]] && [[ $- == *i* ]] && command -v tmux >/dev/null; then
-	if tmux has-session -t main 2>/dev/null; then
-		exec tmux new-session -t main \; new-window
-	else
-		exec tmux new-session -s main
-	fi
+	tmux new-session -d -s main 2>/dev/null || tmux new-window -t main 2>/dev/null
+	tmux new-session -A -s main && exit
 fi'
 	append_env_block "monkey-tmux auto-start" "$block" "tail"
 	ok "tmux auto-start added to shell profiles."
